@@ -42,9 +42,9 @@ class Glider(gym.Env):
         self.y = [y0]
         self.theta = [theta0]
         self.terminal_y = terminal_y
-        self.t_hist = [0]
+        self.t_hist = [np.array([0])]
 
-    def M(self) -> float:
+    def M(self, w: float) -> float:
         """
         Compute the fluid torque on the body.
 
@@ -59,16 +59,18 @@ class Glider(gym.Env):
 
         Parameters
         ----------
+        w : float
+            Angular velocity of cylinder.
 
         Returns
         -------
         M : float
             Value of the fluid torque given the current parameters.
         """
-        M = (self.mu + self.nu * np.abs(self.w[-1])) * self.w[-1]
+        M = (self.mu + self.nu * np.abs(w)) * w
         return M
 
-    def G(self) -> float:
+    def G(self, u: float, v: float) -> float:
         """
         Return the value of the fluid force affecting vertical motion.
 
@@ -79,6 +81,10 @@ class Glider(gym.Env):
 
         Parameters
         ----------
+        u : float
+            Speed along longitudinal axis of cylinder.
+        v : float
+            Speed along vertical axis of cylinder.
 
         Returns
         -------
@@ -87,16 +93,13 @@ class Glider(gym.Env):
         """
         G = (
             (1 / np.pi)
-            * (
-                self.A
-                - self.B * (self.u[-1] ** 2 - self.v[-1] ** 2) / self.speed() ** 2
-            )
-            * self.speed()
-            * self.v[-1]
+            * (self.A - self.B * (u**2 - v**2) / self.speed(u, v) ** 2)
+            * self.speed(u, v)
+            * v
         )
         return G
 
-    def F(self) -> float:
+    def F(self, u: float, v: float) -> float:
         """
         Return the value of the fluid force affecting longitudinal motion.
 
@@ -107,6 +110,10 @@ class Glider(gym.Env):
 
         Parameters
         ----------
+        u : float
+            Speed along longitudinal axis of cylinder.
+        v : float
+            Speed along vertical axis of cylinder.
 
         Returns
         -------
@@ -115,32 +122,33 @@ class Glider(gym.Env):
         """
         F = (
             (1 / np.pi)
-            * (
-                self.A
-                - self.B * (self.u[-1] ** 2 - self.v[-1] ** 2) / self.speed() ** 2
-            )
-            * self.speed()
-            * self.u[-1]
+            * (self.A - self.B * (u**2 - v**2) / self.speed(u, v) ** 2)
+            * self.speed(u, v)
+            * u
         )
         return F
 
-    def speed(self) -> float:
+    def speed(self, u: float, v: float) -> float:
         """
         Compute the magnitude of the instantaneous velocity.
 
         Parameters
         ----------
+        u : float
+            Speed along longitudinal axis of cylinder.
+        v : float
+            Speed along vertical axis of cylinder.
 
         Returns
         -------
         speed : float
             Magnitude of instantaneous velocity.
         """
-        speed_sq = self.u[-1] ** 2 + self.v[-1] ** 2
+        speed_sq = u**2 + v**2
         speed = np.sqrt(speed_sq)
         return speed
 
-    def gamma(self) -> float:
+    def gamma(self, u: float, v: float, w: float) -> float:
         """
         Compute function describing the circulation around the body.
 
@@ -150,15 +158,19 @@ class Glider(gym.Env):
 
         Parameters
         ----------
+        u : float
+            Speed along longitudinal axis of cylinder.
+        v : float
+            Speed along vertical axis of cylinder.
+        w : float
+            Angular velocity of cylinder.
 
         Returns
         -------
         gamma : float
             Value of circulation around the body at a given time.
         """
-        gamma = (2 / np.pi) * (
-            -self.CT * self.u[-1] * self.v[-1] / self.speed() + self.CR * self.w[-1]
-        )
+        gamma = (2 / np.pi) * (-self.CT * u * v / self.speed(u, v) + self.CR * w)
         return gamma
 
     def moi(self) -> float:
@@ -244,17 +256,17 @@ class Glider(gym.Env):
         """
         u_dot = (
             (self.moi() + 1) * s[1] * s[2]
-            - self.gamma() * s[1]
+            - self.gamma(u=s[0], v=s[1], w=s[2]) * s[1]
             - np.sin(s[5])
-            - self.F()
+            - self.F(u=s[0], v=s[1])
         ) / (self.moi() + self.beta[-1] ** 2)
         v_dot = (
             -(self.moi() + self.beta[-1] ** 2) * s[0] * s[2]
-            + self.gamma() * s[0]
+            + self.gamma(u=s[0], v=s[1], w=s[2]) * s[0]
             - np.cos(s[5])
-            - self.G()
+            - self.G(u=s[0], v=s[1])
         ) / (self.moi() + 1)
-        w_dot = ((self.beta[-1] ** 2 - 1) * s[0] * s[1] - self.M()) / (
+        w_dot = ((self.beta[-1] ** 2 - 1) * s[0] * s[1] - self.M(w=s[2])) / (
             0.25
             * (
                 self.moi() * (1 + self.beta[-1] ** 2)
