@@ -43,6 +43,8 @@ class Glider(gym.Env):
         self.theta = [theta0]
         self.terminal_y = terminal_y
         self.t_hist = [np.array([0])]
+        self.ang_limit = np.pi / 2
+        self.t_max = 500 * self.dt
 
     def M(self, w: float) -> float:
         """
@@ -356,6 +358,55 @@ class Glider(gym.Env):
         self.t_hist.append(sol_object.t[1:])
         self.t += self.dt
 
+    def check_angle_bound(self, angle: float) -> bool:
+        """
+        Check the state of the system and compute the requisite reward.
+
+        MAYBE I SHOULD CHECK THIS INSIDE THE STATE WITH EVENTS. That's
+        definitely a better solution. I will learn how to do that. I don't
+        think there will be a large difference though because the time step is
+        so small that there are only a couple of angles in between the
+        observed angles. I also suspect that there is not significant short
+        time oscillation in the angle that would make it go out of bounds in
+        the middle of a time step but back in bounds by the end.
+
+        Parameters
+        ----------
+        angle : float
+            Current angle of the
+        Returns
+        -------
+        out_of_bounds : bool
+            True or false if the angle is outside of bounds or not.
+        """
+        if np.abs(angle) > self.ang_limit:
+            out_of_bounds = True
+        else:
+            out_of_bounds = False
+        return out_of_bounds
+
+    def check_hit_ground(self, y: float) -> bool:
+        """
+        Check if the cylinder reached the ground.
+
+        AGAIN. DO THIS WITH EVENTS IN THE LONG RUN. For the same reasons as
+        before I don't think it will be a huge problem.
+
+        Parameters
+        ----------
+        y : float
+            Current y position.
+        Returns
+        -------
+        hit_ground : bool
+            True if hit ground. False otherwise.
+        """
+        if y <= self.terminal_y:
+            hit_ground = True
+        else:
+            hit_ground = False
+        return hit_ground
+
     def step(self, action: float) -> tuple:
         """
         Classic step method which moves the environment forward one step in time.
@@ -386,11 +437,26 @@ class Glider(gym.Env):
             now I will not include any extra logging info.
         """
         self.forward(beta=action)
-        speed = self.speed()
+        speed = self.speed(u=self.u[-1], v=self.v[-1])
         angle = self.theta[-1]
-        obs = np.array([speed, angle])
-        reward = None
-        done = None  # what are my conditions for terminating an episode?
+        obs = np.array([self.x[-1], self.y[-1], speed, angle])
+        angle_out_of_bounds = self.check_angle_bound(angle)
+        hit_ground = self.check_hit_ground(self.y[-1])
+        if angle_out_of_bounds:
+            # large penalty for flipping and end episode
+            reward = -100
+            done = True
+        elif hit_ground:
+            # reward for making progress in x and end episode
+            reward = 5 * self.x[-1]
+            done = True
+        elif self.t > self.t_max:
+            # make sure agent doesn't just hover forever but reward forward
+            # progress.
+            reward = -10 + 5 * self.x[-1]
+            done = True
+        else:
+            reward = 2 * self.x[-1]
         info = {}  # for not I won't log any additional info
         return obs, reward, done, info
 
