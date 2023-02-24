@@ -34,7 +34,7 @@ class Glider(gym.Env):
         self.mu = 0.2
         self.nu = 0.2
         self.g = 9.81
-        self.beta = [beta0]
+        self.beta = [beta0]  # nothing happens with this initial beta. For now.
         self.u = [u0]
         self.v = [v0]
         self.w = [w0]
@@ -42,6 +42,7 @@ class Glider(gym.Env):
         self.y = [y0]
         self.theta = [theta0]
         self.terminal_y = terminal_y
+        self.t_hist = [0]
 
     def M(self) -> float:
         """
@@ -179,7 +180,7 @@ class Glider(gym.Env):
         moi : float
             Non dimensional moment of inertia.
         """
-        moi = self.rho_s / self.rho_f * self.beta[-1]
+        moi = (self.rho_s / self.rho_f) * self.beta[-1]
         return moi
 
     def hit_ground(self, t: float, s: np.ndarray) -> float:
@@ -261,7 +262,7 @@ class Glider(gym.Env):
             )
         )
         x_dot = s[0] * np.cos(s[5]) - s[1] * np.sin(s[5])
-        y_dot = s[0] * np.sin(s[5]) - s[1] * np.cos(s[5])
+        y_dot = s[0] * np.sin(s[5]) + s[1] * np.cos(s[5])
         theta_dot = s[2]
         s_dot = np.hstack((u_dot, v_dot, w_dot, x_dot, y_dot, theta_dot))
         return s_dot
@@ -340,6 +341,8 @@ class Glider(gym.Env):
             # events = self.hit_ground
         )
         self.update_state_history(solution_object=sol_object)
+        self.t_hist.append(sol_object.t[1:])
+        self.t += self.dt
 
     def step(self, action: float) -> tuple:
         """
@@ -371,7 +374,9 @@ class Glider(gym.Env):
             now I will not include any extra logging info.
         """
         self.forward(beta=action)
-        obs = np.array()
+        speed = self.speed()
+        angle = self.theta[-1]
+        obs = np.array([speed, angle])
         reward = None
         done = None  # what are my conditions for terminating an episode?
         info = {}  # for not I won't log any additional info
