@@ -19,6 +19,7 @@ class Glider(gym.Env):
         y0: float = 0,
         theta0: float = 0,
         terminal_y: float = -10,
+        target_x: float = 5,
     ):
         """
         This is the main glider class.
@@ -65,6 +66,7 @@ class Glider(gym.Env):
             self.terminal_y
         )  # should center the [terminal_y, 0] interval
         self.action_space = gym.spaces.Discrete(5)
+        self.target_x = target_x
 
     def M(self, w: float) -> float:
         """
@@ -467,6 +469,31 @@ class Glider(gym.Env):
         beta = lookup_dict[action]
         return beta
 
+    def compute_intermediate_reward(self) -> float:
+        """
+        Compute the reward the agent will normally receive.
+
+        This is not the reward at all times because I have a diferent reward
+        for when the agent flips over and for when it reaches the terminal y
+        value.
+
+        Paramters
+        ---------
+        None
+
+        Returns
+        -------
+        reward : float
+            Reward given to the RL agent.
+        """
+        if self.t >= 2 * self.dt:  # make sure there are 2 events to check
+            reward = (
+                -self.dt
+                + np.abs(self.target_x - self.x[-2])
+                - np.abs(self.target_x - self.x[-1])
+            )
+        return reward
+
     def step(self, action: float) -> tuple:
         """
         Classic step method which moves the environment forward one step in time.
@@ -512,26 +539,31 @@ class Glider(gym.Env):
         )
         angle_out_of_bounds = self.check_angle_bound(angle=angle)
         hit_ground = self.check_hit_ground(y=y_pos)
+        # reward = self.compute_reward()
         if angle_out_of_bounds:
             # large penalty for flipping and end episode
             reward = -1000
             done = True
-            # print("Flipped over!")
         elif hit_ground:
             # reward for making progress in x and end episode
-            reward = 5 * self.x[-1]
+            # reward = 5 * self.x[-1]
+            reward = 10 * (
+                np.abs(self.target_x - self.x[-2]) - np.abs(self.target_x - self.x[-1])
+            )
             done = True
-            # print("Hit ground!")
-        elif self.t > self.t_max:
-            # make sure agent doesn't just hover forever but reward forward
-            # progress.
-            reward = -10 + 5 * self.x[-1]
-            done = True
-            # print("Ran out of time")
         else:
-            reward = 2 * self.x[-1]
+            reward = self.compute_intermediate_reward()
             done = False
-        info = {}  # for now I won't log any additional info
+            # reward = -self.dt + np.abs(self.x[-1] - self.target_x)
+        # elif self.t > self.t_max:
+        #     # make sure agent doesn't just hover forever but reward forward
+        #     # progress.
+        #     reward = -10 + 5 * self.x[-1]
+        #     done = True
+        # else:
+        #     reward = 2 * self.x[-1]
+        #     done = False
+        info = {}
         return obs, reward, done, info
 
     def reset(self):
