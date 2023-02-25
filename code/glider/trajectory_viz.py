@@ -59,6 +59,7 @@ def update(frame):
     )
     ax.add_artist(e)
     e.set_clip_box(ax.bbox)
+    ax.scatter(5, y_min)
     return (ln,)
 
 

@@ -486,12 +486,12 @@ class Glider(gym.Env):
         reward : float
             Reward given to the RL agent.
         """
-        if self.t >= 2 * self.dt:  # make sure there are 2 events to check
-            reward = (
-                -self.dt
-                + np.abs(self.target_x - self.x[-2])
-                - np.abs(self.target_x - self.x[-1])
-            )
+        # make sure there are 2 events to check
+        reward = (
+            0 * -self.dt
+            + np.abs(self.target_x - self.x[-2])
+            - np.abs(self.target_x - self.x[-1])
+        )
         return reward
 
     def step(self, action: float) -> tuple:
@@ -547,9 +547,10 @@ class Glider(gym.Env):
         elif hit_ground:
             # reward for making progress in x and end episode
             # reward = 5 * self.x[-1]
-            reward = 10 * (
-                np.abs(self.target_x - self.x[-2]) - np.abs(self.target_x - self.x[-1])
-            )
+            # reward = 10 * (
+            #     np.abs(self.target_x - self.x[-2]) - np.abs(self.target_x - self.x[-1])
+            # )
+            reward = self.compute_intermediate_reward()
             done = True
         else:
             reward = self.compute_intermediate_reward()
