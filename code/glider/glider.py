@@ -1,3 +1,6 @@
+"""
+Here I implement the glider class as a gym environment.
+"""
 import gym
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -19,8 +22,6 @@ class Glider(gym.Env):
     ):
         """
         This is the main glider class.
-
-        From here I will implement all of the methods and do the learning.
         """
         super(Glider, self).__init__()
         self.t = 0
@@ -41,7 +42,8 @@ class Glider(gym.Env):
         self.y0 = y0
         self.beta0 = beta0
         self.theta0 = theta0
-        self.beta = [beta0]  # nothing happens with this initial beta. For now.
+        self.beta = []
+        # self.beta = [beta0]  # nothing happens with this initial beta. For now.
         self.u = [u0]
         self.v = [v0]
         self.w = [w0]
@@ -193,7 +195,7 @@ class Glider(gym.Env):
         gamma = (2 / np.pi) * (-self.CT * u * v / self.speed(u, v) + self.CR * w)
         return gamma
 
-    def moi(self) -> float:
+    def moi(self, beta: float) -> float:
         """
         Compute the non dimensional moment of inertia.
 
@@ -206,13 +208,15 @@ class Glider(gym.Env):
 
         Parameters
         ----------
+        beta : float
+            Aspect ratio.
 
         Returns
         -------
         moi : float
             Non dimensional moment of inertia.
         """
-        moi = (self.rho_s / self.rho_f) * self.beta[-1]
+        moi = (self.rho_s / self.rho_f) * beta
         return moi
 
     def hit_ground(self, t: float, s: np.ndarray) -> float:
@@ -253,7 +257,7 @@ class Glider(gym.Env):
         """
         pass
 
-    def dynamical_eqns(self, t: float, s: np.ndarray) -> np.ndarray:
+    def dynamical_eqns(self, t: float, s: np.ndarray, beta: float) -> np.ndarray:
         """
         Give the dynamics of the system at a given time.
 
@@ -268,6 +272,9 @@ class Glider(gym.Env):
             Current time.
         s : np.ndarray
             State of the system.
+        beta : list
+            Value of aspect ratio. Has to be a list to pass as an arg to the
+            solve_ivp method.
 
         Returns
         -------
@@ -275,23 +282,19 @@ class Glider(gym.Env):
             Vector containing equations for evolution of state variables.
         """
         u_dot = (
-            (self.moi() + 1) * s[1] * s[2]
+            (self.moi(beta) + 1) * s[1] * s[2]
             - self.gamma(u=s[0], v=s[1], w=s[2]) * s[1]
             - np.sin(s[5])
             - self.F(u=s[0], v=s[1])
-        ) / (self.moi() + self.beta[-1] ** 2)
+        ) / (self.moi(beta) + beta**2)
         v_dot = (
-            -(self.moi() + self.beta[-1] ** 2) * s[0] * s[2]
+            -(self.moi(beta) + beta**2) * s[0] * s[2]
             + self.gamma(u=s[0], v=s[1], w=s[2]) * s[0]
             - np.cos(s[5])
             - self.G(u=s[0], v=s[1])
-        ) / (self.moi() + 1)
-        w_dot = ((self.beta[-1] ** 2 - 1) * s[0] * s[1] - self.M(w=s[2])) / (
-            0.25
-            * (
-                self.moi() * (1 + self.beta[-1] ** 2)
-                + 0.5 * (1 - self.beta[-1] ** 2) ** 2
-            )
+        ) / (self.moi(beta) + 1)
+        w_dot = ((beta**2 - 1) * s[0] * s[1] - self.M(w=s[2])) / (
+            0.25 * (self.moi(beta) * (1 + beta**2) + 0.5 * (1 - beta**2) ** 2)
         )
         x_dot = s[0] * np.cos(s[5]) - s[1] * np.sin(s[5])
         y_dot = s[0] * np.sin(s[5]) + s[1] * np.cos(s[5])
@@ -299,7 +302,7 @@ class Glider(gym.Env):
         s_dot = np.hstack((u_dot, v_dot, w_dot, x_dot, y_dot, theta_dot))
         return s_dot
 
-    def update_state_history(self, solution_object) -> None:
+    def update_state_history(self, solution_object, beta) -> None:
         """
         Update the state history using the solution object found with solve_ivp
 
@@ -307,7 +310,9 @@ class Glider(gym.Env):
         condition so I don't append that to the state. From the examples in
         the docs it seems to be the case that the first element in each
         solution array is just the initial conidtion so I think this is a fine
-        approach.
+        approach. We also add here code to make sure we are logging the proper
+        number of betas in the history so there are an equal amount of betas
+        and other state variables.
 
         Parameters
         ----------
@@ -315,6 +320,9 @@ class Glider(gym.Env):
             Bunch object defined in Scipy that holds the solution and times
             at which the solution is found. The solution is contained in the
             y property of the object.
+        beta : float
+            Value of aspect ratio for the duration of the current simulation
+            step.
         """
         u = solution_object.y[0]
         self.u.extend(list(u[1:]))
@@ -328,6 +336,15 @@ class Glider(gym.Env):
         self.y.extend(list(y[1:]))
         theta = solution_object.y[5]
         self.theta.extend(list(theta[1:]))
+        # count the number of elements I will add to the beta history
+        if self.t == 0:
+            n_updates = len(theta[1:]) + 1
+        else:
+            n_updates = len(theta[1:])
+        # create a list of beta repeated this many times.
+        extra_betas = [beta] * n_updates
+        # extend the list of betas
+        self.beta.extend(extra_betas)
 
     def forward(self, beta: float) -> None:
         """
@@ -358,7 +375,10 @@ class Glider(gym.Env):
             y : np.ndarray (n, n_points)
                 Value of state at the n_points
         """
-        self.beta.append(beta)  # first add the new beta to the list.
+        # if self.t == 0:
+        #     self.beta = [beta]
+        # else:
+        #     self.beta.append(beta)  # first add the new beta to the list.
         sol_object = solve_ivp(
             fun=self.dynamical_eqns,
             t_span=[self.t, self.t + self.dt],
@@ -370,9 +390,10 @@ class Glider(gym.Env):
                 self.y[-1],
                 self.theta[-1],
             ],
+            args=[beta]
             # events = self.hit_ground
         )
-        self.update_state_history(solution_object=sol_object)
+        self.update_state_history(solution_object=sol_object, beta=beta)
         self.t_hist.append(sol_object.t[1:])
         self.t += self.dt
 
@@ -527,7 +548,8 @@ class Glider(gym.Env):
         self.x = [self.x0]
         self.y = [self.y0]
         self.theta = [self.theta0]
-        self.beta = [self.beta0]
+        # self.beta = [self.beta0]
+        self.beta = []
         self.t_hist = [np.array([0])]
         self.t = 0
         speed = self.speed(u=self.u[-1], v=self.v[-1])
