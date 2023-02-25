@@ -1,4 +1,4 @@
-import gymnasium as gym
+import gym
 import numpy as np
 from scipy.integrate import solve_ivp
 
@@ -24,7 +24,7 @@ class Glider(gym.Env):
         """
         super(Glider, self).__init__()
         self.t = 0
-        self.dt = 0.25  # I need to find a good value for this.
+        self.dt = 0.1  # I need to find a good value for this.
         self.rho_s = rho_s
         self.rho_f = rho_f
         self.CT = 1.2
@@ -34,6 +34,13 @@ class Glider(gym.Env):
         self.mu = 0.2
         self.nu = 0.2
         self.g = 9.81
+        self.u0 = u0
+        self.v0 = v0
+        self.w0 = w0
+        self.x0 = x0
+        self.y0 = y0
+        self.beta0 = beta0
+        self.theta0 = theta0
         self.beta = [beta0]  # nothing happens with this initial beta. For now.
         self.u = [u0]
         self.v = [v0]
@@ -45,6 +52,17 @@ class Glider(gym.Env):
         self.t_hist = [np.array([0])]
         self.ang_limit = np.pi / 2
         self.t_max = 500 * self.dt
+        # state is (x, y, v, theta)
+        self.observation_space = gym.spaces.Box(
+            low=np.array([-1, -1, -1, -1]), high=np.array([1, 1, 1, 1])
+        )  # normalized observation space. The exact way to bound the alues
+        # is a guess
+        self.max_speed = 10
+        self.max_x = 20
+        self.max_y = np.abs(
+            self.terminal_y
+        )  # should center the [terminal_y, 0] interval
+        self.action_space = gym.spaces.Discrete(5)
 
     def M(self, w: float) -> float:
         """
@@ -407,6 +425,27 @@ class Glider(gym.Env):
             hit_ground = False
         return hit_ground
 
+    def action_lookup(self, action: int) -> float:
+        """
+        Lookup the action value according to a specific integer.
+
+        Need to define an action dictionary because the gym Discrete aciton
+        space only gives integer choices.
+
+        Parameters
+        ----------
+        action : int
+            Integer action chose by agent.
+        Returns
+        -------
+        beta : float
+            Aspect ratio corresponding to integer.
+        """
+        # lookup_dict = {0: 0.1, 1: 0.5, 2: 1, 3: 5, 4: 10}
+        lookup_dict = {0: 0.1, 1: 0.2, 2: 0.3, 3: 0.4, 4: 0.5}
+        beta = lookup_dict[action]
+        return beta
+
     def step(self, action: float) -> tuple:
         """
         Classic step method which moves the environment forward one step in time.
@@ -436,32 +475,74 @@ class Glider(gym.Env):
             Extra information about the episode for logging purposes. Right
             now I will not include any extra logging info.
         """
-        self.forward(beta=action)
+        beta = self.action_lookup(action)
+        self.forward(beta=beta)
         speed = self.speed(u=self.u[-1], v=self.v[-1])
         angle = self.theta[-1]
-        obs = np.array([self.x[-1], self.y[-1], speed, angle])
-        angle_out_of_bounds = self.check_angle_bound(angle)
-        hit_ground = self.check_hit_ground(self.y[-1])
+        x_pos = self.x[-1]
+        norm_x_pos = x_pos / self.max_x
+        y_pos = self.y[-1]
+        norm_y_pos = y_pos / self.max_y
+        norm_angle = angle / self.ang_limit
+        norm_speed = speed / self.max_speed
+        # Maybe x and y can't be measured. I will play with this
+        obs = np.array(
+            [norm_x_pos, norm_y_pos, norm_speed, norm_angle], dtype=np.float32
+        )
+        angle_out_of_bounds = self.check_angle_bound(angle=angle)
+        hit_ground = self.check_hit_ground(y=y_pos)
         if angle_out_of_bounds:
             # large penalty for flipping and end episode
-            reward = -100
+            reward = -1000
             done = True
+            # print("Flipped over!")
         elif hit_ground:
             # reward for making progress in x and end episode
             reward = 5 * self.x[-1]
             done = True
+            # print("Hit ground!")
         elif self.t > self.t_max:
             # make sure agent doesn't just hover forever but reward forward
             # progress.
             reward = -10 + 5 * self.x[-1]
             done = True
+            # print("Ran out of time")
         else:
             reward = 2 * self.x[-1]
-        info = {}  # for not I won't log any additional info
+            done = False
+        info = {}  # for now I won't log any additional info
         return obs, reward, done, info
 
     def reset(self):
-        pass
+        """
+        Reset method for gym environment. Resets the system to the original.
+
+        Make sure to reset all of the variables to their initial values. I can
+        also experiment with random initial conditions in some range here at a
+        later point. For now I will keep it fixed.
+        """
+        self.u = [self.u0]
+        self.v = [self.v0]
+        self.w = [self.w0]
+        self.x = [self.x0]
+        self.y = [self.y0]
+        self.theta = [self.theta0]
+        self.beta = [self.beta0]
+        self.t_hist = [np.array([0])]
+        self.t = 0
+        speed = self.speed(u=self.u[-1], v=self.v[-1])
+        angle = self.theta[-1]
+        x_pos = self.x[-1]
+        norm_x_pos = x_pos / self.max_x
+        y_pos = self.y[-1]
+        norm_y_pos = y_pos / self.max_y
+        norm_angle = angle / self.ang_limit
+        norm_speed = speed / self.max_speed
+        # Maybe x and y can't be measured. I will play with this
+        obs = np.array(
+            [norm_x_pos, norm_y_pos, norm_speed, norm_angle], dtype=np.float32
+        )
+        return obs
 
     def render(self):
         pass
