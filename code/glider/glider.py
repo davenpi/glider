@@ -57,12 +57,15 @@ class Glider(gym.Env):
         self.ang_limit = np.pi / 2
         self.t_max = 500 * self.dt
         # state is (x, y, speed, theta)
+        # self.observation_space = gym.spaces.Box(
+        #     low=np.array([-1, -1, -1, -1]), high=np.array([1, 1, 1, 1])
+        # )  # normalized observation space. The exact way to bound the values
+        # # is a guess
         self.observation_space = gym.spaces.Box(
             low=np.array([-1, -1, -1, -1]), high=np.array([1, 1, 1, 1])
-        )  # normalized observation space. The exact way to bound the values
-        # is a guess
+        )  # state is (speed, angle, beta, delta x)
         self.max_speed = 10
-        self.max_x = 20
+        self.max_x = 4 * target_x
         self.max_y = np.abs(
             self.terminal_y
         )  # should center the [terminal_y, 0] interval
@@ -489,6 +492,50 @@ class Glider(gym.Env):
         )
         return reward
 
+    # def extract_observation(self) -> np.ndarray:
+    #     """
+    #     Return the state observation.
+
+    #     Parameters
+    #     ----------
+    #     None
+
+    #     Returns
+    #     -------
+    #     obs : np.ndarray
+    #         Observation given to the agent.
+    #     """
+    #     speed = self.speed(u=self.u[-1], v=self.v[-1])
+    #     angle = self.theta[-1]
+    #     x_pos = self.x[-1]
+    #     norm_x_pos = x_pos / self.max_x
+    #     y_pos = self.y[-1]
+    #     norm_y_pos = y_pos / self.max_y
+    #     norm_angle = angle / self.ang_limit
+    #     norm_speed = speed / self.max_speed
+    #     # Maybe x and y can't be measured. I will play with this
+    #     obs = np.array(
+    #         [norm_x_pos, norm_y_pos, norm_speed, norm_angle], dtype=np.float32
+    #     )
+    #     return obs
+
+    def scale_beta(self) -> float:
+        """
+        Return the scaled beta which is in the intereval [-1, 1]
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        norm_beta : float
+            Normalized beta value.
+        """
+        norm_beta = ((-2) / (self.beta_min - self.beta_max)) * (
+            self.beta[-1] - self.beta_max
+        ) + 1
+        return norm_beta
+
     def extract_observation(self) -> np.ndarray:
         """
         Return the state observation.
@@ -502,17 +549,16 @@ class Glider(gym.Env):
         obs : np.ndarray
             Observation given to the agent.
         """
-        speed = self.speed(u=self.u[-1], v=self.v[-1])
-        angle = self.theta[-1]
-        x_pos = self.x[-1]
-        norm_x_pos = x_pos / self.max_x
-        y_pos = self.y[-1]
-        norm_y_pos = y_pos / self.max_y
-        norm_angle = angle / self.ang_limit
+        speed = np.sign(self.u[-1]) * self.speed(u=self.u[-1], v=self.v[-1])
         norm_speed = speed / self.max_speed
-        # Maybe x and y can't be measured. I will play with this
+        angle = self.theta[-1]
+        norm_angle = angle / self.ang_limit
+        x_pos = self.x[-1]
+        delta_x = x_pos - self.target_x
+        norm_delta_x = delta_x / self.max_x
+        norm_beta = self.scale_beta()
         obs = np.array(
-            [norm_x_pos, norm_y_pos, norm_speed, norm_angle], dtype=np.float32
+            [norm_speed, norm_angle, norm_beta, norm_delta_x], dtype=np.float32
         )
         return obs
 
@@ -552,7 +598,7 @@ class Glider(gym.Env):
         hit_ground = self.check_hit_ground(y=self.y[-1])
         if angle_out_of_bounds:
             # large penalty for flipping and end episode
-            reward = -1000
+            reward = -50
             done = True
         elif hit_ground:
             reward = self.compute_reward()
