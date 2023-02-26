@@ -56,7 +56,7 @@ class Glider(gym.Env):
         self.t_hist = [np.array([0])]
         self.ang_limit = np.pi / 2
         self.t_max = 500 * self.dt
-        # state is (x, y, v, theta)
+        # state is (x, y, speed, theta)
         self.observation_space = gym.spaces.Box(
             low=np.array([-1, -1, -1, -1]), high=np.array([1, 1, 1, 1])
         )  # normalized observation space. The exact way to bound the values
@@ -68,6 +68,7 @@ class Glider(gym.Env):
         )  # should center the [terminal_y, 0] interval
         self.action_space = gym.spaces.Discrete(3)
         self.target_x = target_x
+        self.target_theta = np.pi / 4
         self.lookup_dict = {0: 0, 1: 0.5, 2: -0.5}
 
     def M(self, w: float) -> float:
@@ -482,7 +483,7 @@ class Glider(gym.Env):
             Reward given to the RL agent.
         """
         reward = (
-            0 * -self.dt
+            -self.dt
             + np.abs(self.target_x - self.x[-2])
             - np.abs(self.target_x - self.x[-1])
         )
@@ -555,6 +556,11 @@ class Glider(gym.Env):
             done = True
         elif hit_ground:
             reward = self.compute_reward()
+            reward += 10 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
+            if self.t > 10:
+                reward += 10 * (
+                    np.exp(-10 * ((self.theta[-1] - self.target_theta) ** 2))
+                )
             done = True
         else:
             reward = self.compute_reward()

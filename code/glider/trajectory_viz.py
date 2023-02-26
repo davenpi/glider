@@ -50,7 +50,7 @@ def init():
 def update(frame):
     ax.clear()
     ax.set_xlim(x_min - pad, x_max + pad)
-    ax.set_ylim(y_min, y_max + pad)
+    ax.set_ylim(y_min - pad / 2, y_max + pad)
     ln.set_data(xdata[frame], ydata[frame])
     e = Ellipse(
         xy=(x[frame], y[frame]),
@@ -70,7 +70,6 @@ ani = FuncAnimation(
 writervideo = animation.FFMpegWriter(fps=20)
 ani.save(args.fname, writer=writervideo)
 plt.close()
-plt.show()
 
 
 """
@@ -97,3 +96,9 @@ ax.set_xlim(x.min() - pad, x.max() + pad)
 ax.set_ylim(y.min(), y.max() + pad)
 
 plt.savefig("sparse_flutter_viz.png")
+plt.close()
+
+
+plt.plot(theta)
+plt.title("theta over time")
+plt.show()
