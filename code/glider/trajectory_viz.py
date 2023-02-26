@@ -8,6 +8,7 @@ from matplotlib.patches import Ellipse
 from matplotlib.animation import FuncAnimation
 import matplotlib.animation as animation
 import argparse
+from math import floor
 
 parser = argparse.ArgumentParser(description="Process name")
 parser.add_argument("fname", type=str)
@@ -73,26 +74,26 @@ plt.show()
 
 
 """
-Ellipse drawing code
+Ellipse drawing code. This is for the sparse visualization
 """
-# ells = [
-#     Ellipse(
-#         xy=(x[i], y[i]),
-#         width=width[i],
-#         height=height[i],
-#         angle=theta[i],
-#     )
-#     for i in range(n)
-# ]
+ells = [
+    Ellipse(
+        xy=(x[i], y[i]),
+        width=width[i],
+        height=height[i],
+        angle=theta[i],
+    )
+    for i in np.arange(start=0, stop=n, step=floor(n / 10))
+]
 
-# fig, ax = plt.subplots(subplot_kw={"aspect": "equal"})
-# for e in ells:
-#     ax.add_artist(e)
-#     e.set_clip_box(ax.bbox)
-#     e.set_alpha(np.random.rand())
-#     e.set_facecolor(np.random.rand(3))
+fig, ax = plt.subplots(subplot_kw={"aspect": "equal"})
+for e in ells:
+    ax.add_artist(e)
+    # e.set_clip_box(ax.bbox)
+    # e.set_alpha(np.random.rand())
+    # e.set_facecolor(np.random.rand(3))
 
-# ax.set_xlim(x.min(), x.max())
-# ax.set_ylim(y.min(), y.max())
+ax.set_xlim(x.min() - pad, x.max() + pad)
+ax.set_ylim(y.min(), y.max() + pad)
 
-# plt.show()
+plt.savefig("sparse_flutter_viz.png")

@@ -11,7 +11,7 @@ class Glider(gym.Env):
         self,
         rho_s: float = 1,
         rho_f: float = 0.5,
-        beta0: float = 0.1,
+        beta0: float = 0.5,
         u0: float = 1,
         v0: float = 1,
         w0: float = 0,
@@ -43,8 +43,9 @@ class Glider(gym.Env):
         self.y0 = y0
         self.beta0 = beta0
         self.theta0 = theta0
-        self.beta = []
-        # self.beta = [beta0]  # nothing happens with this initial beta. For now.
+        self.beta = [beta0]  # nothing happens with this initial beta. For now.
+        self.beta_max = 1
+        self.beta_min = 0.1
         self.u = [u0]
         self.v = [v0]
         self.w = [w0]
@@ -58,15 +59,16 @@ class Glider(gym.Env):
         # state is (x, y, v, theta)
         self.observation_space = gym.spaces.Box(
             low=np.array([-1, -1, -1, -1]), high=np.array([1, 1, 1, 1])
-        )  # normalized observation space. The exact way to bound the alues
+        )  # normalized observation space. The exact way to bound the values
         # is a guess
         self.max_speed = 10
         self.max_x = 20
         self.max_y = np.abs(
             self.terminal_y
         )  # should center the [terminal_y, 0] interval
-        self.action_space = gym.spaces.Discrete(5)
+        self.action_space = gym.spaces.Discrete(3)
         self.target_x = target_x
+        self.lookup_dict = {0: 0, 1: 0.5, 2: -0.5}
 
     def M(self, w: float) -> float:
         """
@@ -241,25 +243,7 @@ class Glider(gym.Env):
         dist = s[4] - self.terminal_y
         return dist
 
-    def flipped_up(self, t: float, s: np.ndarray) -> float:
-        """
-        Check whether or not the cylinder has tipped too far up.
-        """
-        pass
-
-    def turned_down(self, t: float, s: np.ndarray) -> float:
-        """
-        Check wheter or not the cylinder has turned too far down.
-        """
-        pass
-
-    def rotate_too_fast(self, t: float, s: np.ndarray) -> float:
-        """
-        Check whether or not the cylinder is rotating too fast.
-        """
-        pass
-
-    def dynamical_eqns(self, t: float, s: np.ndarray, beta: float) -> np.ndarray:
+    def dynamical_eqns(self, t: float, s: np.ndarray, db_dt: float) -> np.ndarray:
         """
         Give the dynamics of the system at a given time.
 
@@ -273,10 +257,9 @@ class Glider(gym.Env):
         t : float
             Current time.
         s : np.ndarray
-            State of the system.
-        beta : list
-            Value of aspect ratio. Has to be a list to pass as an arg to the
-            solve_ivp method.
+            State of the system. (u, v, w, x, y, theta, beta)
+        db_dot : float
+            Beta dot.
 
         Returns
         -------
@@ -284,27 +267,28 @@ class Glider(gym.Env):
             Vector containing equations for evolution of state variables.
         """
         u_dot = (
-            (self.moi(beta) + 1) * s[1] * s[2]
+            (self.moi(s[6]) + 1) * s[1] * s[2]
             - self.gamma(u=s[0], v=s[1], w=s[2]) * s[1]
             - np.sin(s[5])
             - self.F(u=s[0], v=s[1])
-        ) / (self.moi(beta) + beta**2)
+        ) / (self.moi(s[6]) + s[6] ** 2)
         v_dot = (
-            -(self.moi(beta) + beta**2) * s[0] * s[2]
+            -(self.moi(s[6]) + s[6] ** 2) * s[0] * s[2]
             + self.gamma(u=s[0], v=s[1], w=s[2]) * s[0]
             - np.cos(s[5])
             - self.G(u=s[0], v=s[1])
-        ) / (self.moi(beta) + 1)
-        w_dot = ((beta**2 - 1) * s[0] * s[1] - self.M(w=s[2])) / (
-            0.25 * (self.moi(beta) * (1 + beta**2) + 0.5 * (1 - beta**2) ** 2)
+        ) / (self.moi(s[6]) + 1)
+        w_dot = ((s[6] ** 2 - 1) * s[0] * s[1] - self.M(w=s[2])) / (
+            0.25 * (self.moi(s[6]) * (1 + s[6] ** 2) + 0.5 * (1 - s[6] ** 2) ** 2)
         )
         x_dot = s[0] * np.cos(s[5]) - s[1] * np.sin(s[5])
         y_dot = s[0] * np.sin(s[5]) + s[1] * np.cos(s[5])
         theta_dot = s[2]
-        s_dot = np.hstack((u_dot, v_dot, w_dot, x_dot, y_dot, theta_dot))
+        beta_dot = db_dt
+        s_dot = np.hstack((u_dot, v_dot, w_dot, x_dot, y_dot, theta_dot, beta_dot))
         return s_dot
 
-    def update_state_history(self, solution_object, beta) -> None:
+    def update_state_history(self, solution_object) -> None:
         """
         Update the state history using the solution object found with solve_ivp
 
@@ -338,17 +322,34 @@ class Glider(gym.Env):
         self.y.extend(list(y[1:]))
         theta = solution_object.y[5]
         self.theta.extend(list(theta[1:]))
-        # count the number of elements I will add to the beta history
-        if self.t == 0:
-            n_updates = len(theta[1:]) + 1
-        else:
-            n_updates = len(theta[1:])
-        # create a list of beta repeated this many times.
-        extra_betas = [beta] * n_updates
-        # extend the list of betas
-        self.beta.extend(extra_betas)
+        beta = solution_object.y[6]
+        self.beta.extend(list(beta[1:]))
+        self.t_hist.extend(list(solution_object.t[1:]))
+        self.t += self.dt
 
-    def forward(self, beta: float) -> None:
+    def check_beta_bound(self, beta_dot: float) -> float:
+        """
+        Check to make sure that beta does not go outside of the bounds.
+
+        Parameters
+        ----------
+        beta_dot : float
+            Control input.
+
+        Returns
+        -------
+        beta_dot : float
+            Edited control if necessary.
+        """
+        if self.beta[-1] + self.dt * beta_dot > self.beta_max:
+            beta_dot = (self.beta_max - self.beta[-1]) / self.dt
+        elif self.beta[-1] + self.dt * beta_dot < self.beta_min:
+            beta_dot = (self.beta_min - self.beta[-1]) / self.dt
+        else:
+            beta_dot = beta_dot
+        return beta_dot
+
+    def forward(self, beta_dot: float) -> None:
         """
         Integrating the dynamics forward in time.
 
@@ -366,8 +367,8 @@ class Glider(gym.Env):
 
         Parameters
         ----------
-        beta : float
-            Cylinder aspect ratio chosen by controller.
+        beta_dot : float
+            Rate of change of cylinder aspect ratio.
 
         Returns
         -------
@@ -377,10 +378,7 @@ class Glider(gym.Env):
             y : np.ndarray (n, n_points)
                 Value of state at the n_points
         """
-        # if self.t == 0:
-        #     self.beta = [beta]
-        # else:
-        #     self.beta.append(beta)  # first add the new beta to the list.
+        beta_dot = self.check_beta_bound(beta_dot=beta_dot)
         sol_object = solve_ivp(
             fun=self.dynamical_eqns,
             t_span=[self.t, self.t + self.dt],
@@ -391,13 +389,11 @@ class Glider(gym.Env):
                 self.x[-1],
                 self.y[-1],
                 self.theta[-1],
+                self.beta[-1],
             ],
-            args=[beta]
-            # events = self.hit_ground
+            args=[beta_dot],
         )
-        self.update_state_history(solution_object=sol_object, beta=beta)
-        self.t_hist.append(sol_object.t[1:])
-        self.t += self.dt
+        self.update_state_history(solution_object=sol_object)
 
     def check_angle_bound(self, angle: float) -> bool:
         """
@@ -414,7 +410,8 @@ class Glider(gym.Env):
         Parameters
         ----------
         angle : float
-            Current angle of the
+            Current angle of the cylinder.
+
         Returns
         -------
         out_of_bounds : bool
@@ -459,23 +456,21 @@ class Glider(gym.Env):
         ----------
         action : int
             Integer action chose by agent.
+
         Returns
         -------
-        beta : float
-            Aspect ratio corresponding to integer.
+        beta_dot : float
+            Rate of change of aspect ratio according to lookup dictionary.
         """
-        # lookup_dict = {0: 0.1, 1: 0.5, 2: 1, 3: 5, 4: 10}
-        lookup_dict = {0: 0.1, 1: 0.2, 2: 0.3, 3: 0.4, 4: 0.5}
-        beta = lookup_dict[action]
-        return beta
+        beta_dot = self.lookup_dict[action]
+        return beta_dot
 
-    def compute_intermediate_reward(self) -> float:
+    def compute_reward(self) -> float:
         """
         Compute the reward the agent will normally receive.
 
         This is not the reward at all times because I have a diferent reward
-        for when the agent flips over and for when it reaches the terminal y
-        value.
+        for when the agent flips.
 
         Paramters
         ---------
@@ -486,13 +481,39 @@ class Glider(gym.Env):
         reward : float
             Reward given to the RL agent.
         """
-        # make sure there are 2 events to check
         reward = (
             0 * -self.dt
             + np.abs(self.target_x - self.x[-2])
             - np.abs(self.target_x - self.x[-1])
         )
         return reward
+
+    def extract_observation(self) -> np.ndarray:
+        """
+        Return the state observation.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        obs : np.ndarray
+            Observation given to the agent.
+        """
+        speed = self.speed(u=self.u[-1], v=self.v[-1])
+        angle = self.theta[-1]
+        x_pos = self.x[-1]
+        norm_x_pos = x_pos / self.max_x
+        y_pos = self.y[-1]
+        norm_y_pos = y_pos / self.max_y
+        norm_angle = angle / self.ang_limit
+        norm_speed = speed / self.max_speed
+        # Maybe x and y can't be measured. I will play with this
+        obs = np.array(
+            [norm_x_pos, norm_y_pos, norm_speed, norm_angle], dtype=np.float32
+        )
+        return obs
 
     def step(self, action: float) -> tuple:
         """
@@ -523,51 +544,25 @@ class Glider(gym.Env):
             Extra information about the episode for logging purposes. Right
             now I will not include any extra logging info.
         """
-        beta = self.action_lookup(action)
-        self.forward(beta=beta)
-        speed = self.speed(u=self.u[-1], v=self.v[-1])
-        angle = self.theta[-1]
-        x_pos = self.x[-1]
-        norm_x_pos = x_pos / self.max_x
-        y_pos = self.y[-1]
-        norm_y_pos = y_pos / self.max_y
-        norm_angle = angle / self.ang_limit
-        norm_speed = speed / self.max_speed
-        # Maybe x and y can't be measured. I will play with this
-        obs = np.array(
-            [norm_x_pos, norm_y_pos, norm_speed, norm_angle], dtype=np.float32
-        )
-        angle_out_of_bounds = self.check_angle_bound(angle=angle)
-        hit_ground = self.check_hit_ground(y=y_pos)
-        # reward = self.compute_reward()
+        beta_dot = self.action_lookup(action)
+        self.forward(beta_dot=beta_dot)
+        obs = self.extract_observation()
+        angle_out_of_bounds = self.check_angle_bound(angle=self.theta[-1])
+        hit_ground = self.check_hit_ground(y=self.y[-1])
         if angle_out_of_bounds:
             # large penalty for flipping and end episode
             reward = -1000
             done = True
         elif hit_ground:
-            # reward for making progress in x and end episode
-            # reward = 5 * self.x[-1]
-            # reward = 10 * (
-            #     np.abs(self.target_x - self.x[-2]) - np.abs(self.target_x - self.x[-1])
-            # )
-            reward = self.compute_intermediate_reward()
+            reward = self.compute_reward()
             done = True
         else:
-            reward = self.compute_intermediate_reward()
+            reward = self.compute_reward()
             done = False
-            # reward = -self.dt + np.abs(self.x[-1] - self.target_x)
-        # elif self.t > self.t_max:
-        #     # make sure agent doesn't just hover forever but reward forward
-        #     # progress.
-        #     reward = -10 + 5 * self.x[-1]
-        #     done = True
-        # else:
-        #     reward = 2 * self.x[-1]
-        #     done = False
         info = {}
         return obs, reward, done, info
 
-    def reset(self):
+    def reset(self) -> np.ndarray:
         """
         Reset method for gym environment. Resets the system to the original.
 
@@ -581,26 +576,11 @@ class Glider(gym.Env):
         self.x = [self.x0]
         self.y = [self.y0]
         self.theta = [self.theta0]
-        # self.beta = [self.beta0]
-        self.beta = []
-        self.t_hist = [np.array([0])]
+        self.beta = [self.beta0]
+        self.t_hist = [0]
         self.t = 0
-        speed = self.speed(u=self.u[-1], v=self.v[-1])
-        angle = self.theta[-1]
-        x_pos = self.x[-1]
-        norm_x_pos = x_pos / self.max_x
-        y_pos = self.y[-1]
-        norm_y_pos = y_pos / self.max_y
-        norm_angle = angle / self.ang_limit
-        norm_speed = speed / self.max_speed
-        # Maybe x and y can't be measured. I will play with this
-        obs = np.array(
-            [norm_x_pos, norm_y_pos, norm_speed, norm_angle], dtype=np.float32
-        )
+        obs = self.extract_observation()
         return obs
 
-    def render(self):
-        pass
-
-    def lets_see(self):
+    def render(self) -> None:
         pass
