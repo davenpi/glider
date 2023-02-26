@@ -601,3 +601,6 @@ class Glider(gym.Env):
 
     def render(self):
         pass
+
+    def lets_see(self):
+        pass
