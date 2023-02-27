@@ -20,7 +20,7 @@ n = args.model_n
 video_name = args.fname
 
 
-glider = Glider(u0=0.25, v0=-0.25, w0=0.1)
+glider = Glider(u0=0.25, v0=0.25, w0=0.1)
 model = PPO.load("big_state_models/rl_model_" + str(n) + "_steps.zip", env=glider)
 done = False
 obs = glider.reset()
@@ -65,11 +65,18 @@ def update(frame):
     ax.add_artist(e)
     e.set_clip_box(ax.bbox)
     ax.scatter(5, y_min)
+    if frame == beta.size - 1:
+        ax.set_title(
+            f"""Delta x = {glider.x[frame] - glider.target_x} and 
+            delta theta = {glider.theta[frame] - glider.target_theta}"""
+        )
+
     return (ln,)
 
 
+print("Writing video")
 ani = FuncAnimation(
-    fig, update, frames=n, init_func=init, blit=True, interval=20, repeat=False
+    fig, update, frames=n, init_func=init, blit=True, interval=15, repeat=False
 )
 writervideo = animation.FFMpegWriter(fps=30)
 ani.save(filename=video_name, writer=writervideo)
@@ -89,6 +96,7 @@ ells = [
     for i in np.arange(start=0, stop=n, step=floor(n / 10))
 ]
 
+print("Drawing sparse trajectory")
 fig, ax = plt.subplots(subplot_kw={"aspect": "equal"})
 for e in ells:
     ax.add_artist(e)
@@ -100,8 +108,8 @@ plt.savefig("sparse_flutter_viz.png")
 plt.close()
 
 
+print("Plotting logged data")
 fig, ax = plt.subplots(nrows=3, ncols=2, sharex=True, figsize=(10, 8))
-
 fig.text(0.5, 0.04, "Time", ha="center")
 fig.suptitle("Logged info from trajectory", fontsize=20)
 ax[0, 0].plot(glider.t_hist, theta)
@@ -110,8 +118,10 @@ ax[0, 0].axhline(y=-np.pi / 2)
 ax[0, 0].set_ylabel(r"$\theta$")
 ax[0, 1].plot(glider.t_hist, x)
 ax[0, 1].set_ylabel("X")
+ax[0, 1].axhline(y=glider.target_x)
 ax[1, 0].plot(glider.t_hist, y)
 ax[1, 0].set_ylabel("Y")
+ax[1, 0].axhline(y=glider.terminal_y)
 ax[1, 1].plot(glider.t_hist, glider.beta)
 ax[1, 1].set_ylabel(r"$\beta$")
 ax[2, 0].plot(glider.t_hist, glider.v)
@@ -119,8 +129,8 @@ ax[2, 0].set_ylabel("V")
 ax[2, 1].plot(glider.t_hist, glider.u)
 ax[2, 1].set_ylabel("U")
 
-plt.show()
-
+plt.savefig("logged_info.png")
+plt.close()
 
 # def save_history(glider: Glider, filename: str) -> None:
 #     """
