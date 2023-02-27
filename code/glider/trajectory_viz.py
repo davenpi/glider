@@ -100,7 +100,7 @@ plt.savefig("sparse_flutter_viz.png")
 plt.close()
 
 
-fig, ax = plt.subplots(nrows=3, ncols=2, sharex=True, figsize=(12, 10))
+fig, ax = plt.subplots(nrows=3, ncols=2, sharex=True, figsize=(10, 8))
 
 fig.text(0.5, 0.04, "Time", ha="center")
 fig.suptitle("Logged info from trajectory", fontsize=20)
