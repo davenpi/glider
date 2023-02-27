@@ -64,7 +64,7 @@ def update(frame):
     )
     ax.add_artist(e)
     e.set_clip_box(ax.bbox)
-    ax.scatter(5, y_min)
+    ax.scatter(glider.target_x, glider.terminal_y, marker="X", c="red")
     if frame == beta.size - 1:
         ax.set_title(
             f"""Delta x = {glider.x[frame] - glider.target_x} and 
