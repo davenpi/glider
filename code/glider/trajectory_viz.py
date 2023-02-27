@@ -64,11 +64,12 @@ def update(frame):
     )
     ax.add_artist(e)
     e.set_clip_box(ax.bbox)
-    ax.scatter(glider.target_x, glider.terminal_y, marker="X", c="red")
+    ax.scatter(x[frame], y[frame], marker="o", c="green", s=2)
+    ax.scatter(glider.target_x, glider.terminal_y, marker="X", c="red", s=8)
     if frame == beta.size - 1:
         ax.set_title(
-            f"""Delta x = {glider.x[frame] - glider.target_x} and 
-            delta theta = {glider.theta[frame] - glider.target_theta}"""
+            f"""delta_x/x = {np.round((glider.x[frame] - glider.target_x)/glider.target_x, 2)} and 
+            delta_theta = {np.round(glider.theta[frame] - glider.target_theta, 2)}"""
         )
 
     return (ln,)
@@ -91,9 +92,9 @@ ells = [
         xy=(x[i], y[i]),
         width=width[i],
         height=height[i],
-        angle=theta[i],
+        angle=np.deg2rad(np.mod(theta[i], 2 * np.pi)),
     )
-    for i in np.arange(start=0, stop=n, step=floor(n / 10))
+    for i in np.arange(start=0, stop=n, step=floor(n / 20))
 ]
 
 print("Drawing sparse trajectory")
@@ -102,8 +103,9 @@ for e in ells:
     ax.add_artist(e)
 
 ax.set_xlim(x.min() - pad, x.max() + pad)
-ax.set_ylim(y.min(), y.max() + pad)
+ax.set_ylim(y.min() - pad / 2, y.max() + pad)
 
+ax.scatter(glider.target_x, glider.terminal_y, marker="X", c="red")
 plt.savefig("sparse_flutter_viz.png")
 plt.close()
 

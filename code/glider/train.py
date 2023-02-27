@@ -26,5 +26,9 @@ checkpoint_callback = CheckpointCallback(
 )
 
 # model = PPO("MlpPolicy", glider, verbose=0, tensorboard_log="big_state_logs/")
-model = PPO.load("pretrained_models/rl_model_900000_steps.zip", env = glider, tensorboard_log = "big_state_logs/")
+model = PPO.load(
+    "pretrained_models/rl_model_900000_steps.zip",
+    env=glider,
+    tensorboard_log="big_state_logs/",
+)
 model.learn(total_timesteps=n, callback=checkpoint_callback, progress_bar=True)
