@@ -7,7 +7,16 @@ from glider import Glider
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
 import pickle
+import argparse
 
+parser = argparse.ArgumentParser()
+
+parser.add_argument(
+    "-s", "--steps", default=5e5, type=float, help="Number of learning steps"
+)
+
+args = parser.parse_args()
+n = int(args.steps)
 
 glider = Glider(u0=0.25, v0=0.25, w0=0.1)
 checkpoint_callback = CheckpointCallback(
@@ -17,32 +26,4 @@ checkpoint_callback = CheckpointCallback(
 )
 
 model = PPO("MlpPolicy", glider, verbose=0, tensorboard_log="big_state_logs/")
-model.learn(total_timesteps=6e5, callback=checkpoint_callback, progress_bar=True)
-
-glider = Glider(u0=0.25, v0=-0.25, w0=0.1)
-model = PPO.load("big_state_models/rl_model_600000_steps.zip", env=glider)
-done = False
-obs = glider.reset()
-while not done:
-    action, _states = model.predict(obs, deterministic=True)
-    obs, reward, done, _ = glider.step(action.item())
-
-
-def save_history(glider: Glider, filename: str) -> None:
-    """
-    Save the full history of the glider in a dictionary
-    """
-    history = {
-        "u": glider.u,
-        "v": glider.v,
-        "w": glider.w,
-        "x": glider.x,
-        "y": glider.y,
-        "theta": glider.theta,
-        "beta": glider.beta,
-    }
-    with open(filename + ".pkl", "wb") as f:
-        pickle.dump(history, f)
-
-
-save_history(glider=glider, filename="history")
+model.learn(total_timesteps=n, callback=checkpoint_callback, progress_bar=True)

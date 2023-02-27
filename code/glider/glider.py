@@ -53,7 +53,7 @@ class Glider(gym.Env):
         self.y = [y0]
         self.theta = [theta0]
         self.terminal_y = terminal_y
-        self.t_hist = [np.array([0])]
+        self.t_hist = [0]
         self.ang_limit = np.pi / 2
         self.t_max = 500 * self.dt
         # state is (x, y, speed, theta)
@@ -82,7 +82,7 @@ class Glider(gym.Env):
         effective fluid torque on the solid body given the instantaneous
         value of the parameters.
 
-        M = [(V/L) \mu_\tau + \nu_\tau |w|]*w
+        M = [\mu_\tau + \nu_\tau |w|]*w
 
         In the RL follow on to the original paper they have M = 0.2*M. I need
         to figure out which one is correct.
@@ -419,7 +419,7 @@ class Glider(gym.Env):
         Returns
         -------
         out_of_bounds : bool
-            True or false if the angle is outside of bounds or not.
+            True if the angle is outside of bounds.
         """
         if np.abs(angle) > self.ang_limit:
             out_of_bounds = True
@@ -598,14 +598,15 @@ class Glider(gym.Env):
         hit_ground = self.check_hit_ground(y=self.y[-1])
         if angle_out_of_bounds:
             # large penalty for flipping and end episode
-            reward = -50
+            reward = -1000
             done = True
         elif hit_ground:
             reward = self.compute_reward()
-            reward += 10 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
+            reward += 50 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
+            # reward -= 10 * np.abs(self.x[-1] - self.target_x)
             if self.t > 10:
-                reward += 10 * (
-                    np.exp(-10 * ((self.theta[-1] - self.target_theta) ** 2))
+                reward += 50 * (
+                    np.exp(-5 * ((self.theta[-1] - self.target_theta) ** 2))
                 )
             done = True
         else:
