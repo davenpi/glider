@@ -227,7 +227,7 @@ class Glider(gym.Env):
         moi = (self.rho_s / self.rho_f) * beta
         return moi
 
-    def hit_ground(self, t: float, s: np.ndarray) -> float:
+    def hit_ground(self, t: float, s: np.ndarray, beta_dot: float) -> float:
         """
         Return the y distance from the terminal y.
 
@@ -241,11 +241,13 @@ class Glider(gym.Env):
             Current time.
         s : np.ndarray (n,)
             Current state of the system. Since the state is
-            s = (u, v, w, x, y, theta) we need to check y[4] to see what the
+            s = (u, v, w, x, y, theta, beta) we need to check s[4] to see what the
             current y axis position is.
         """
         dist = s[4] - self.terminal_y
         return dist
+
+    hit_ground.terminal = True
 
     def dynamical_eqns(self, t: float, s: np.ndarray, db_dt: float) -> np.ndarray:
         """
@@ -396,6 +398,7 @@ class Glider(gym.Env):
                 self.beta[-1],
             ],
             args=[beta_dot],
+            events=self.hit_ground,
         )
         self.update_state_history(solution_object=sol_object)
 
@@ -602,10 +605,10 @@ class Glider(gym.Env):
             done = True
         elif hit_ground:
             reward = self.compute_reward()
-            reward += 50 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
+            reward += 15 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
             # reward -= 10 * np.abs(self.x[-1] - self.target_x)
             if self.t > 10:
-                reward += 50 * (
+                reward += 15 * (
                     np.exp(-5 * ((self.theta[-1] - self.target_theta) ** 2))
                 )
             done = True
