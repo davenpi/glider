@@ -614,11 +614,13 @@ class Glider(gym.Env):
         elif hit_ground:
             reward = self.compute_reward()
             reward += 15 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
-            # reward -= 10 * np.abs(self.x[-1] - self.target_x)
             if self.t > 10:
                 reward += 15 * (
                     np.exp(-5 * ((self.theta[-1] - self.target_theta) ** 2))
                 )
+            # reward += 15 * (
+            #     np.exp(-5 * ((self.theta[-1] - self.target_theta) ** 2))
+            # )
             done = True
         else:
             reward = self.compute_reward()

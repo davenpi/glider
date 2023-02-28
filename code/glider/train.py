@@ -1,12 +1,9 @@
 """
 This script runs the training of the agent and saves the agent history.
 """
-import numpy as np
-import matplotlib.pyplot as plt
 from glider import Glider
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
-import pickle
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -25,11 +22,10 @@ checkpoint_callback = CheckpointCallback(
     name_prefix="rl_model",
 )
 
-# model = PPO("MlpPolicy", glider, verbose=0, tensorboard_log="big_state_logs/")
-# model = PPO.load(
-#     "pretrained_models/rl_model_900000_steps.zip",
-#     env=glider,
-#     tensorboard_log="big_state_logs/",
-# )
-model = PPO("MlpPolicy", env=glider, tensorboard_log="big_state_logs/")
+model = PPO.load(
+    "pretrained_models/rl_model_900000_steps.zip",
+    env=glider,
+    tensorboard_log="big_state_logs/",
+)
+# model = PPO("MlpPolicy", env=glider, tensorboard_log="big_state_logs/")
 model.learn(total_timesteps=n, callback=checkpoint_callback, progress_bar=True)
