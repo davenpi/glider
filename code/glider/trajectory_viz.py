@@ -69,7 +69,8 @@ def update(frame):
     if frame == beta.size - 1:
         ax.set_title(
             f"""delta_x/x = {np.round((glider.x[frame] - glider.target_x)/glider.target_x, 2)} and 
-            delta_theta = {np.round(glider.theta[frame] - glider.target_theta, 2)}"""
+            delta_theta = {np.round((glider.theta[frame] - glider.target_theta)/glider.target_theta, 2)}
+            """
         )
 
     return (ln,)

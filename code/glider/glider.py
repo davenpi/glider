@@ -233,7 +233,9 @@ class Glider(gym.Env):
 
         I want to end the episode at a given terminal y. In order to do that
         I will pass in an event to the solve_ivp function. The event function
-        must evaluate to zero when the terminal condition is satisfied.
+        must evaluate to zero when the terminal condition is satisfied. I need
+        to pass in the extra beta_dot argument to make the solve_ivp method
+        happy. Otherwise it says I am passing the event too many arguments.
 
         Parameters
         ----------
@@ -243,6 +245,13 @@ class Glider(gym.Env):
             Current state of the system. Since the state is
             s = (u, v, w, x, y, theta, beta) we need to check s[4] to see what the
             current y axis position is.
+        beta_dot : float
+            Rate of change of aspect ratio. Passed just for API compatibility.
+
+        Returns
+        -------
+        dist : float
+            Distance between current y and the terminal y.
         """
         dist = s[4] - self.terminal_y
         return dist
@@ -398,7 +407,6 @@ class Glider(gym.Env):
                 self.beta[-1],
             ],
             args=[beta_dot],
-            events=self.hit_ground,
         )
         self.update_state_history(solution_object=sol_object)
 
