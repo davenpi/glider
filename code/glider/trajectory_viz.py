@@ -112,7 +112,7 @@ plt.close()
 
 
 print("Plotting logged data")
-fig, ax = plt.subplots(nrows=3, ncols=2, sharex=True, figsize=(10, 8))
+fig, ax = plt.subplots(nrows=4, ncols=2, sharex=True, figsize=(10, 8))
 fig.text(0.5, 0.04, "Time", ha="center")
 fig.suptitle("Logged info from trajectory", fontsize=20)
 ax[0, 0].plot(glider.t_hist, theta)
@@ -131,25 +131,10 @@ ax[2, 0].plot(glider.t_hist, glider.v)
 ax[2, 0].set_ylabel("V")
 ax[2, 1].plot(glider.t_hist, glider.u)
 ax[2, 1].set_ylabel("U")
+ax[3, 0].scatter(glider.x, glider.y)
+ax[3, 0].set_xlabel("X")
+ax[3, 0].set_ylabel("Y")
+ax[3, 1].plot(glider.t_hist, glider.w)
 
 plt.savefig("logged_info.png")
 plt.close()
-
-# def save_history(glider: Glider, filename: str) -> None:
-#     """
-#     Save the full history of the glider in a dictionary
-#     """
-#     history = {
-#         "u": glider.u,
-#         "v": glider.v,
-#         "w": glider.w,
-#         "x": glider.x,
-#         "y": glider.y,
-#         "theta": glider.theta,
-#         "beta": glider.beta,
-#     }
-#     with open(filename + ".pkl", "wb") as f:
-#         pickle.dump(history, f)
-
-
-# save_history(glider=glider, filename="history")

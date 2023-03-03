@@ -52,17 +52,20 @@ class Glider(gym.Env):
         self.x = [x0]
         self.y = [y0]
         self.theta = [theta0]
+        self.ang_limit = np.pi / 2
         self.terminal_y = terminal_y
         self.t_hist = [0]
-        self.ang_limit = np.pi / 2
         self.t_max = 500 * self.dt
+        self.u_max = 4  # guess
+        self.v_max = 2  # guess
         # state is (x, y, speed, theta)
         # self.observation_space = gym.spaces.Box(
         #     low=np.array([-1, -1, -1, -1]), high=np.array([1, 1, 1, 1])
         # )  # normalized observation space. The exact way to bound the values
         # # is a guess
         self.observation_space = gym.spaces.Box(
-            low=np.array([-1, -1, -1, -1]), high=np.array([1, 1, 1, 1])
+            low=np.array([-1, -1, -1, -1, -1, -1, -1]),
+            high=np.array([1, 1, 1, 1, 1, 1, 1]),
         )  # state is (speed, angle, beta, delta x)
         self.max_speed = 10
         self.max_x = 4 * target_x
@@ -503,33 +506,6 @@ class Glider(gym.Env):
         )
         return reward
 
-    # def extract_observation(self) -> np.ndarray:
-    #     """
-    #     Return the state observation.
-
-    #     Parameters
-    #     ----------
-    #     None
-
-    #     Returns
-    #     -------
-    #     obs : np.ndarray
-    #         Observation given to the agent.
-    #     """
-    #     speed = self.speed(u=self.u[-1], v=self.v[-1])
-    #     angle = self.theta[-1]
-    #     x_pos = self.x[-1]
-    #     norm_x_pos = x_pos / self.max_x
-    #     y_pos = self.y[-1]
-    #     norm_y_pos = y_pos / self.max_y
-    #     norm_angle = angle / self.ang_limit
-    #     norm_speed = speed / self.max_speed
-    #     # Maybe x and y can't be measured. I will play with this
-    #     obs = np.array(
-    #         [norm_x_pos, norm_y_pos, norm_speed, norm_angle], dtype=np.float32
-    #     )
-    #     return obs
-
     def scale_beta(self) -> float:
         """
         Return the scaled beta which is in the intereval [-1, 1]
@@ -560,17 +536,25 @@ class Glider(gym.Env):
         obs : np.ndarray
             Observation given to the agent.
         """
-        speed = np.sign(self.u[-1]) * self.speed(u=self.u[-1], v=self.v[-1])
-        norm_speed = speed / self.max_speed
-        angle = self.theta[-1]
-        norm_angle = angle / self.ang_limit
+        # speed = np.sign(self.u[-1]) * self.speed(u=self.u[-1], v=self.v[-1])
+        # norm_speed = speed / self.max_speed
+        norm_u = self.u[-1] / self.u_max
+        norm_v = self.v[-1] / self.v_max
+        norm_w = self.w[-1] / (2 * self.ang_limit / self.dt)
+
         x_pos = self.x[-1]
         delta_x = x_pos - self.target_x
         norm_delta_x = delta_x / self.max_x
+        y_pos = self.y[-1]
+        delta_y = y_pos - self.terminal_y
+        norm_delta_y = delta_y / np.abs(self.terminal_y)
+        norm_angle = self.theta[-1] / self.ang_limit
         norm_beta = self.scale_beta()
         obs = np.array(
-            [norm_speed, norm_angle, norm_beta, norm_delta_x], dtype=np.float32
+            [norm_u, norm_v, norm_w, norm_delta_x, norm_delta_y, norm_angle, norm_beta],
+            dtype=np.float32,
         )
+
         return obs
 
     def step(self, action: float) -> tuple:
