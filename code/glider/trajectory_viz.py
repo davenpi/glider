@@ -24,13 +24,9 @@ glider = Glider(u0=0.25, v0=0.25, w0=0.1)
 model = PPO.load("big_state_models/rl_model_" + str(n) + "_steps.zip", env=glider)
 done = False
 obs = glider.reset()
-cum_rew = 0
 while not done:
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, done, _ = glider.step(action.item())
-    print(f"Reward is {reward}")
-    cum_rew += reward
-print(f"Cumulative reward is {cum_rew}")
 
 
 x = np.array(glider.x)
@@ -72,7 +68,7 @@ def update(frame):
     ax.scatter(glider.target_x, glider.terminal_y, marker="X", c="red", s=8)
     if frame == beta.size - 1:
         ax.set_title(
-            f"""delta_x/x = {np.round((glider.x[frame] - glider.target_x)/glider.target_x, 3)} and 
+            f"""delta_x/x = {np.round((glider.x[frame] - glider.target_x)/glider.target_x, 2)} and 
             delta_theta = {np.round((glider.theta[frame] - glider.target_theta)/glider.target_theta, 2)}
             """
         )
@@ -106,12 +102,11 @@ print("Drawing sparse trajectory")
 fig, ax = plt.subplots(subplot_kw={"aspect": "equal"})
 for e in ells:
     ax.add_artist(e)
-ax.scatter(glider.target_x, glider.terminal_y, marker="X", c="red")
+
 ax.set_xlim(x.min() - pad, x.max() + pad)
 ax.set_ylim(y.min() - pad / 2, y.max() + pad)
-ax.set_xlabel("X")
-ax.set_ylabel("Y")
-ax.set_title("Trajectory")
+
+ax.scatter(glider.target_x, glider.terminal_y, marker="X", c="red")
 plt.savefig("sparse_flutter_viz.png")
 plt.close()
 

@@ -613,12 +613,14 @@ class Glider(gym.Env):
             done = True
         elif hit_ground:
             reward = self.compute_reward()
-            reward += 9 * (np.exp(-((self.x[-1] - self.target_x) ** 2))) # the 9 reflects the roughly brachistochrone time of descent
-            if self.t > 7:
-                reward += 9 * (
-                    np.exp(-10 * ((self.theta[-1] - self.target_theta) ** 2))
+            reward += 15 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
+            if self.t > 10:
+                reward += 15 * (
+                    np.exp(-5 * ((self.theta[-1] - self.target_theta) ** 2))
                 )
-            # reward += 15 * (np.exp(-10 * ((self.theta[-1] - self.target_theta) ** 2)))
+            # reward += 15 * (
+            #     np.exp(-5 * ((self.theta[-1] - self.target_theta) ** 2))
+            # )
             done = True
         else:
             reward = self.compute_reward()
