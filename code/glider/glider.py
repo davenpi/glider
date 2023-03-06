@@ -9,17 +9,18 @@ from scipy.integrate import solve_ivp
 class Glider(gym.Env):
     def __init__(
         self,
-        rho_s: float = 1,
-        rho_f: float = 0.5,
+        rho_s: float = 2,
+        rho_f: float = 1,
         beta0: float = 0.5,
-        u0: float = 1,
-        v0: float = 1,
-        w0: float = 0,
+        u0: float = 0.25,
+        v0: float = 0.25,
+        w0: float = 0.1,
         x0: float = 0,
         y0: float = 0,
         theta0: float = 0,
-        terminal_y: float = -10,
-        target_x: float = 5,
+        terminal_y: float = -50,
+        target_x: float = 15,
+        beta_min: float = 0.1,
     ):
         """
         This is the main glider class.
@@ -41,11 +42,11 @@ class Glider(gym.Env):
         self.w0 = w0
         self.x0 = x0
         self.y0 = y0
-        self.beta0 = beta0
+        self.beta0 = 1
         self.theta0 = theta0
         self.beta = [beta0]  # nothing happens with this initial beta. For now.
-        self.beta_max = 1
-        self.beta_min = 0.1
+        self.beta_max = 1 / beta_min
+        self.beta_min = beta_min
         self.u = [u0]
         self.v = [v0]
         self.w = [w0]
@@ -55,14 +56,9 @@ class Glider(gym.Env):
         self.ang_limit = np.pi / 2
         self.terminal_y = terminal_y
         self.t_hist = [0]
-        self.t_max = 500 * self.dt
+        self.t_max = 1000 * self.dt
         self.u_max = 4  # guess
         self.v_max = 2  # guess
-        # state is (x, y, speed, theta)
-        # self.observation_space = gym.spaces.Box(
-        #     low=np.array([-1, -1, -1, -1]), high=np.array([1, 1, 1, 1])
-        # )  # normalized observation space. The exact way to bound the values
-        # # is a guess
         self.observation_space = gym.spaces.Box(
             low=np.array([-1, -1, -1, -1, -1, -1, -1]),
             high=np.array([1, 1, 1, 1, 1, 1, 1]),
@@ -501,7 +497,7 @@ class Glider(gym.Env):
         """
         reward = (
             -self.dt
-            + np.abs(self.target_x - self.x[-2])
+            # + np.abs(self.target_x - self.x[-2])
             - np.abs(self.target_x - self.x[-1])
         )
         return reward
@@ -518,7 +514,7 @@ class Glider(gym.Env):
         norm_beta : float
             Normalized beta value.
         """
-        norm_beta = ((-2) / (self.beta_min - self.beta_max)) * (
+        norm_beta = (-2 / (self.beta_min - self.beta_max)) * (
             self.beta[-1] - self.beta_max
         ) + 1
         return norm_beta
@@ -597,11 +593,9 @@ class Glider(gym.Env):
             done = True
         elif hit_ground:
             reward = self.compute_reward()
-            reward += 15 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
-            if self.t > 10:
-                reward += 15 * (
-                    np.exp(-5 * ((self.theta[-1] - self.target_theta) ** 2))
-                )
+            reward += 300 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
+            if self.t > 5:
+                reward += 300 * (np.exp(-((self.theta[-1] - self.target_theta) ** 2)))
             # reward += 15 * (
             #     np.exp(-5 * ((self.theta[-1] - self.target_theta) ** 2))
             # )

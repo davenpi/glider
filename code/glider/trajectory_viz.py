@@ -20,7 +20,7 @@ n = args.model_n
 video_name = args.fname
 
 
-glider = Glider(u0=0.25, v0=0.25, w0=0.1)
+glider = Glider()
 model = PPO.load("big_state_models/rl_model_" + str(n) + "_steps.zip", env=glider)
 done = False
 obs = glider.reset()
@@ -36,8 +36,8 @@ y_min, y_max = y.min(), y.max()
 theta = np.array(glider.theta)
 beta = np.array(glider.beta)
 n = beta.size
-width = np.ones(shape=n)
-height = beta * width
+width = np.sqrt(0.1/beta) # np.ones(shape=n)
+height = np.sqrt(0.1*beta)#beta * width
 
 fig, ax = plt.subplots()
 xdata, ydata = x, y
@@ -78,7 +78,7 @@ def update(frame):
 
 print("Writing video")
 ani = FuncAnimation(
-    fig, update, frames=n, init_func=init, blit=True, interval=15, repeat=False
+    fig, update, frames=n, init_func=init, blit=True, interval=5, repeat=False
 )
 writervideo = animation.FFMpegWriter(fps=30)
 ani.save(filename=video_name, writer=writervideo)
@@ -135,6 +135,7 @@ ax[3, 0].scatter(glider.x, glider.y)
 ax[3, 0].set_xlabel("X")
 ax[3, 0].set_ylabel("Y")
 ax[3, 1].plot(glider.t_hist, glider.w)
+ax[3, 1].set_ylabel("W")
 
 plt.savefig("logged_info.png")
 plt.close()
