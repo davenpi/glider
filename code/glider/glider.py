@@ -22,14 +22,14 @@ class Glider(gym.Env):
         rho_s: float = 2,
         rho_f: float = 1,
         beta0: float = 1,
-        u0: float = 0.0,
+        u0: float = -0.1,
         v0: float = 0.25,
         w0: float = 0.0,
         x0: float = 0,
         y0: float = 0,
         theta0: float = np.pi / 8,
-        terminal_y: float = -50,
-        target_x: float = 100,
+        terminal_y: float = -20,
+        target_x: float = 10,
         beta_min: float = 0.1,
         ellipse_volume: float = 1,
     ):
@@ -63,8 +63,8 @@ class Glider(gym.Env):
         self.terminal_y = terminal_y
         self.t_hist = [0]
         self.t_max = 1000 * self.dt
-        self.u_max = 4  # guess
-        self.v_max = 2  # guess
+        self.u_max = 8  # guess
+        self.v_max = 4  # guess
         self.max_speed = 10
         self.max_x = 4 * target_x
         self.max_y = np.abs(
@@ -754,11 +754,11 @@ class Glider(gym.Env):
         #     done = True
         if hit_ground:
             reward = self.compute_reward()
-            reward += 25 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
-            if self.t > 5:
-                reward += 25 * (
-                    np.exp(-5 * ((np.abs(self.theta[-1]) - self.target_theta) ** 2))
-                )
+            reward += 10 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
+            # if self.t > 5:
+            #     reward += 25 * (
+            #         np.exp(-5 * ((np.abs(self.theta[-1]) - self.target_theta) ** 2))
+            #     )
             done = True
         else:
             reward = self.compute_reward()

@@ -36,8 +36,8 @@ y_min, y_max = y.min(), y.max()
 theta = np.array(glider.theta)
 beta = np.array(glider.beta)
 n = beta.size
-width = 2 * glider.a(beta)  # np.ones(shape=n)
-height = 2 * glider.b(beta)  # beta * width
+width = glider.a(beta)  # np.ones(shape=n)
+height = glider.b(beta)  # beta * width
 
 fig, ax = plt.subplots()
 xdata, ydata = x, y
@@ -46,14 +46,14 @@ pad = 2
 
 
 def init():
-    ax.set_xlim(x_min - pad, x_max + pad)
+    ax.set_xlim(-glider.target_x - pad, glider.target_x + pad)
     ax.set_ylim(y_min, y_max + pad)
     return (ln,)
 
 
 def update(frame):
     ax.clear()
-    ax.set_xlim(x_min - pad, x_max + pad)
+    ax.set_xlim(-glider.target_x - pad, glider.target_x + pad)
     ax.set_ylim(y_min - pad / 2, y_max + pad)
     ln.set_data(xdata[frame], ydata[frame])
     e = Ellipse(
@@ -71,15 +71,15 @@ def update(frame):
     ax.arrow(
         x=x[frame],
         y=y[frame],
-        dx=0.5 * np.cos(theta[frame]),
-        dy=0.5 * np.sin(theta[frame]),
-        width=0.5,
+        dx=np.cos(theta[frame]),
+        dy=np.sin(theta[frame]),
+        width=0.1,
     )
     if frame == beta.size - 1:
         ax.set_title(
-            f"""delta_x/x = {np.round((glider.x[frame] - glider.target_x)/glider.target_x, 2)} and 
-            delta_theta = {np.round((glider.theta[frame] - glider.target_theta)/glider.target_theta, 2)}
-            """
+            f"""delta_x/x = {np.round((glider.x[frame] - glider.target_x)/glider.target_x, 2)}"""  # and
+            # delta_theta = {np.round((glider.theta[frame] - glider.target_theta)/glider.target_theta, 2)}
+            # """
         )
 
     return (ln,)
@@ -121,7 +121,7 @@ plt.close()
 
 
 print("Plotting logged data")
-fig, ax = plt.subplots(nrows=4, ncols=2, sharex=True, figsize=(10, 8))
+fig, ax = plt.subplots(nrows=4, ncols=2, figsize=(10, 8))
 fig.text(0.5, 0.04, "Time", ha="center")
 fig.suptitle("Logged info from trajectory", fontsize=20)
 ax[0, 0].plot(glider.t_hist, theta)
@@ -140,11 +140,12 @@ ax[2, 0].plot(glider.t_hist, glider.v)
 ax[2, 0].set_ylabel("V")
 ax[2, 1].plot(glider.t_hist, glider.u)
 ax[2, 1].set_ylabel("U")
-ax[3, 0].scatter(glider.x, glider.y)
-ax[3, 0].set_xlabel("X")
-ax[3, 0].set_ylabel("Y")
-ax[3, 1].plot(glider.t_hist, glider.w)
-ax[3, 1].set_ylabel("W")
+ax[3, 0].plot(glider.t_hist, glider.w)
+ax[3, 0].set_ylabel("W")
+ax[3, 1].scatter(glider.x, glider.y)
+ax[3, 1].set_xlabel("X")
+ax[3, 1].set_ylabel("Y")
+
 
 plt.savefig("logged_info.png")
 plt.close()
