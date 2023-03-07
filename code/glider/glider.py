@@ -6,45 +6,51 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 
+# Define some global constants
+CT = 1.2
+CR = np.pi
+A = 1.4
+B = 1.0
+mu = 0.2
+nu = 0.2
+g = 9.81
+
+
 class Glider(gym.Env):
     def __init__(
         self,
         rho_s: float = 2,
         rho_f: float = 1,
-        beta0: float = 0.5,
-        u0: float = 0.25,
+        beta0: float = 1,
+        u0: float = 0.0,
         v0: float = 0.25,
-        w0: float = 0.1,
+        w0: float = 0.0,
         x0: float = 0,
         y0: float = 0,
-        theta0: float = 0,
+        theta0: float = np.pi / 8,
         terminal_y: float = -50,
-        target_x: float = 15,
+        target_x: float = 100,
         beta_min: float = 0.1,
+        ellipse_volume: float = 1,
     ):
         """
         This is the main glider class.
         """
         super(Glider, self).__init__()
         self.t = 0
-        self.dt = 0.1  # I need to find a good value for this.
+        self.dt = 0.1
         self.rho_s = rho_s
+        self.mass = 1
         self.rho_f = rho_f
-        self.CT = 1.2
-        self.CR = np.pi
-        self.A = 1.4
-        self.B = 1.0
-        self.mu = 0.2
-        self.nu = 0.2
-        self.g = 9.81
+        self.vol = ellipse_volume
         self.u0 = u0
         self.v0 = v0
         self.w0 = w0
         self.x0 = x0
         self.y0 = y0
-        self.beta0 = 1
         self.theta0 = theta0
-        self.beta = [beta0]  # nothing happens with this initial beta. For now.
+        self.beta0 = beta0
+        self.beta = [beta0]
         self.beta_max = 1 / beta_min
         self.beta_min = beta_min
         self.u = [u0]
@@ -59,29 +65,92 @@ class Glider(gym.Env):
         self.t_max = 1000 * self.dt
         self.u_max = 4  # guess
         self.v_max = 2  # guess
-        self.observation_space = gym.spaces.Box(
-            low=np.array([-1, -1, -1, -1, -1, -1, -1]),
-            high=np.array([1, 1, 1, 1, 1, 1, 1]),
-        )  # state is (speed, angle, beta, delta x)
         self.max_speed = 10
         self.max_x = 4 * target_x
         self.max_y = np.abs(
             self.terminal_y
         )  # should center the [terminal_y, 0] interval
+        self.observation_space = gym.spaces.Box(
+            low=np.array([-1, -1, -1, -1, -1, -1, -1]),
+            high=np.array([1, 1, 1, 1, 1, 1, 1]),
+        )  # state is (u, v, w, x, y, theta, beta)
         self.action_space = gym.spaces.Discrete(3)
         self.target_x = target_x
         self.target_theta = np.pi / 4
-        self.lookup_dict = {0: 0, 1: 0.5, 2: -0.5}
+        self.lookup_dict = {0: 0, 1: 5, 2: -5}
 
-    def M(self, w: float) -> float:
+    def a(self, beta: float) -> float:
+        """
+        Compute a given a beta.
+
+        Since I am assuming the mass of the object m = pi*rho_s*a*b is fixed
+        and that the density of the object is fixed, I need to update the size
+        of the semi-major axis whenever beta is updated. Assuming a*b = vol we
+        let
+            a = sqrt(vol/beta)
+
+        Parameters
+        ----------
+        beta : float
+            Current value of the aspect ratio.
+
+        Returns
+        -------
+        a : float
+            Ellipse semi major axis length.
+        """
+
+        a = np.sqrt(self.vol / beta)
+        return a
+
+    def b(self, beta: float) -> float:
+        """
+        Compute length of semi-minor axis of ellipse.
+
+        Keeping a*b = vol a constant requires updating a and b as we update
+        beta. We have a = sqrt(vol/beta) so that b = sqrt(beta*vol)
+
+        Parameters
+        ----------
+        beta : float
+            Cylinder aspect ratio.
+
+        Returns
+        -------
+        b : float
+            Cylinder semi-minor axis length.
+        """
+        b = np.sqrt(beta * self.vol)
+        return b
+
+    def V(self, beta: float) -> float:
+        """
+        Compute characteristic velocity scale given in Paoletti paper.
+
+        V = sqrt((rho_s/rho_f - 1)*g*b) from page 492 of Paoletti paper.
+
+        Parameters
+        ----------
+        beta : float
+            Cylinder aspect ratio.
+
+        Returns
+        -------
+        V : float
+            Instantaneous value of the characteristic velocity.
+        """
+        V = np.sqrt((self.rho_s / self.rho_f - 1) * g * self.b(beta))
+        return V
+
+    def M(self, w: float, beta: float) -> float:
         """
         Compute the fluid torque on the body.
 
-        Using eqn (2.23) in Paoletti and Mahadevan we compute the
+        Using eqn (2.12) in Paoletti and Mahadevan we compute the
         effective fluid torque on the solid body given the instantaneous
         value of the parameters.
 
-        M = [\mu_\tau + \nu_\tau |w|]*w
+        M =  pi*rho_f*a^4[(V/L)*mu + nu*abs(w)]*w
 
         In the RL follow on to the original paper they have M = 0.2*M. I need
         to figure out which one is correct.
@@ -90,16 +159,23 @@ class Glider(gym.Env):
         ----------
         w : float
             Angular velocity of cylinder.
+        beta : float
+            Aspect ratio of the cylinder.
 
         Returns
         -------
         M : float
             Value of the fluid torque given the current parameters.
         """
-        M = (self.mu + self.nu * np.abs(w)) * w
+        L = self.a(beta)
+        M = (
+            (np.pi * self.rho_f * self.a(beta) ** 4)
+            * (mu * self.V(beta) / L + nu * np.abs(w))
+            * w
+        )
         return M
 
-    def G(self, u: float, v: float) -> float:
+    def G(self, u: float, v: float, beta: float) -> float:
         """
         Return the value of the fluid force affecting vertical motion.
 
@@ -114,6 +190,8 @@ class Glider(gym.Env):
             Speed along longitudinal axis of cylinder.
         v : float
             Speed along vertical axis of cylinder.
+        beta : float
+            Aspect ratio of cylinder.
 
         Returns
         -------
@@ -121,21 +199,22 @@ class Glider(gym.Env):
             Value of fluid force affecting the vertical motion.
         """
         G = (
-            (1 / np.pi)
-            * (self.A - self.B * (u**2 - v**2) / self.speed(u, v) ** 2)
+            self.rho_f
+            * self.a(beta)
+            * (A - B * (u**2 - v**2) / self.speed(u, v) ** 2)
             * self.speed(u, v)
             * v
         )
         return G
 
-    def F(self, u: float, v: float) -> float:
+    def F(self, u: float, v: float, beta: float) -> float:
         """
         Return the value of the fluid force affecting longitudinal motion.
 
-        This function computes the F given by equation 2.21 in the
+        This function computes the F given by equation 2.10 in the
         Paoletti/Mahadevan paper:
 
-            F = 1/pi(A - B*(u^2 - v^2)/(u^2 + v^2))*sqrt(u^2 + v^2)*u
+            F = rho_f*a[A - B(u^2 - v^2)/(sqrt(u^2 + v^2))]*sqrt(u^2+v^2)*u
 
         Parameters
         ----------
@@ -143,6 +222,8 @@ class Glider(gym.Env):
             Speed along longitudinal axis of cylinder.
         v : float
             Speed along vertical axis of cylinder.
+        beta : float
+            Aspect ratio of cylinder.
 
         Returns
         -------
@@ -150,8 +231,9 @@ class Glider(gym.Env):
             Value of fluid force affecting the longitudinal motion.
         """
         F = (
-            (1 / np.pi)
-            * (self.A - self.B * (u**2 - v**2) / self.speed(u, v) ** 2)
+            self.rho_f
+            * self.a(beta)
+            * (A - B * (u**2 - v**2) / self.speed(u, v) ** 2)
             * self.speed(u, v)
             * u
         )
@@ -177,13 +259,13 @@ class Glider(gym.Env):
         speed = np.sqrt(speed_sq)
         return speed
 
-    def gamma(self, u: float, v: float, w: float) -> float:
+    def gamma(self, u: float, v: float, w: float, beta: float) -> float:
         """
         Compute function describing the circulation around the body.
 
-        Use equation 2.20 in Paoletti/Mahadevan paper:
+        Use equation 2.9 in Paoletti/Mahadevan paper:
 
-            gamma = 2/pi(-C_t*uv/sqrt(u^2 + v^2) + C_r*w)
+            gamma = (-2C_t)a*u*v/(sqrt(u^2+v^2)) + (2C_r)wa^2
 
         Parameters
         ----------
@@ -193,25 +275,128 @@ class Glider(gym.Env):
             Speed along vertical axis of cylinder.
         w : float
             Angular velocity of cylinder.
+        beta : float
+            Cylinder aspect ratio.
 
         Returns
         -------
         gamma : float
             Value of circulation around the body at a given time.
         """
-        gamma = (2 / np.pi) * (-self.CT * u * v / self.speed(u, v) + self.CR * w)
+        gamma = (
+            -2 * CT * self.a(beta) * u * v / self.speed(u, v)
+            + 2 * CR * (self.a(beta) ** 2) * w
+        )
         return gamma
 
-    def moi(self, beta: float) -> float:
+    def m0(self, beta: float) -> float:
         """
-        Compute the non dimensional moment of inertia.
+        Compute basic mass of ellipse.
 
-        The non dimensional moment of inertia is given in equation 2.13 of the
-        Paoletti/Mahadevan paper:
+        m = pi*rho_s*a*b
 
-            I = (rho_s*b)/(rho_f*a) = (rho_s/rho_f)*beta
+        Parameters
+        ----------
+        beta : float
+            Cylinder aspect ratio.
 
-        where beta = b/a.
+        Returns
+        -------
+        m0 : float
+            Mass of ellipse.
+        """
+        a = self.a(beta)
+        b = self.b(beta)
+        m0 = np.pi * self.rho_s * a * b
+        return m0
+
+    def m1(self, beta: float) -> float:
+        """
+        Compute added mass in u direction
+
+        m1 = pi*rho_f*b^2
+
+        Parameters
+        ----------
+        beta : float
+            Cylinder aspect ratio.
+
+        Returns
+        -------
+        m1 : float
+            Added mass along u.
+        """
+        b = self.b(beta)
+        m1 = np.pi * self.rho_f * b**2
+        return m1
+
+    def m2(self, beta: float) -> float:
+        """
+        Compute added mass along v.
+
+        m2 = pi*rho_f*a^2
+
+        Parameters
+        ----------
+        beta : float
+            Cylinder aspect ratio.
+
+        Returns
+        -------
+        m2 : Added mass along v.
+        """
+        a = self.a(beta)
+        m2 = np.pi * self.rho_f * a**2
+        return m2
+
+    def moi0(self, beta: float) -> float:
+        """
+        Compute moment of inertia.
+
+
+        Parameters
+        ----------
+        beta : float
+            Cylinder aspect ratio.
+
+        Returns
+        -------
+        I0 : float
+            Moment of inertia.
+        """
+        a = self.a(beta)
+        b = self.b(beta)
+        I0 = 0.25 * np.pi * self.rho_s * a * b * (a**2 + b**2)
+        return I0
+
+    def moi_renorm(self, beta: float) -> float:
+        """
+        Compute renormalization addition to the moment of inertia.
+
+        Given in equation 2.8 of Paoletti.
+
+        Parameters
+        ----------
+        beta : float
+            Cylinder aspect ratio.
+
+        Returns
+        -------
+        Ia : float
+            Renormalization addition to the moment of inertia.
+        """
+        a = self.a(beta)
+        b = self.b(beta)
+        Ia = 0.125 * np.pi * self.rho_f * (a**2 - b**2) ** 2
+        return Ia
+
+    def moi_tot(self, beta: float) -> float:
+        """
+        Compute the total inertia in equation 2.3 from eqn 2.7-2.8 in Paoletti.
+
+        Add the regular moment to the renormalized moment.
+
+            I_tot = I + I_a
 
         Parameters
         ----------
@@ -223,39 +408,10 @@ class Glider(gym.Env):
         moi : float
             Non dimensional moment of inertia.
         """
-        moi = (self.rho_s / self.rho_f) * beta
-        return moi
-
-    def hit_ground(self, t: float, s: np.ndarray, beta_dot: float) -> float:
-        """
-        Return the y distance from the terminal y.
-
-        I want to end the episode at a given terminal y. In order to do that
-        I will pass in an event to the solve_ivp function. The event function
-        must evaluate to zero when the terminal condition is satisfied. I need
-        to pass in the extra beta_dot argument to make the solve_ivp method
-        happy. Otherwise it says I am passing the event too many arguments.
-
-        Parameters
-        ----------
-        t : float
-            Current time.
-        s : np.ndarray (n,)
-            Current state of the system. Since the state is
-            s = (u, v, w, x, y, theta, beta) we need to check s[4] to see what the
-            current y axis position is.
-        beta_dot : float
-            Rate of change of aspect ratio. Passed just for API compatibility.
-
-        Returns
-        -------
-        dist : float
-            Distance between current y and the terminal y.
-        """
-        dist = s[4] - self.terminal_y
-        return dist
-
-    hit_ground.terminal = True
+        I0 = self.moi0(beta)
+        Ia = self.moi_renorm(beta)
+        moi_tot = I0 + Ia
+        return moi_tot
 
     def dynamical_eqns(self, t: float, s: np.ndarray, db_dt: float) -> np.ndarray:
         """
@@ -263,8 +419,9 @@ class Glider(gym.Env):
 
         Input the time and the state and return the dynamics describing
         how the state will evolve over time. The state of the system is
-        s = (u, v, w, x, y, \theta). The dynamical equations equations are
-        given by equations 2.14-2.19 in the Paoletti/Mahadevan paper.
+        s = (u, v, w, x, y, \theta, beta). The dynamical equations are given
+        by equations 2.1-2.6 in the Paoletti/Mahadevan paper plus the added
+        beta dynamics.
 
         Parameters
         ----------
@@ -280,21 +437,25 @@ class Glider(gym.Env):
         ds_dt : np.ndarray
             Vector containing equations for evolution of state variables.
         """
+        a = self.a(beta=s[6])
+        b = self.b(beta=s[6])
+        m0 = self.m0(beta=s[6])
+        m1 = self.m1(beta=s[6])
+        m2 = self.m2(beta=s[6])
+        I_tot = self.moi_tot(beta=s[6])
         u_dot = (
-            (self.moi(s[6]) + 1) * s[1] * s[2]
-            - self.gamma(u=s[0], v=s[1], w=s[2]) * s[1]
-            - np.sin(s[5])
-            - self.F(u=s[0], v=s[1])
-        ) / (self.moi(s[6]) + s[6] ** 2)
+            (m0 + m2) * s[1] * s[2]
+            - self.rho_f * self.gamma(u=s[0], v=s[1], w=s[2], beta=s[6]) * s[1]
+            - np.pi * (self.rho_s - self.rho_f) * a * b * g * np.sin(s[5])
+            - self.F(u=s[0], v=s[1], beta=s[6])
+        ) / (m0 + m1)
         v_dot = (
-            -(self.moi(s[6]) + s[6] ** 2) * s[0] * s[2]
-            + self.gamma(u=s[0], v=s[1], w=s[2]) * s[0]
-            - np.cos(s[5])
-            - self.G(u=s[0], v=s[1])
-        ) / (self.moi(s[6]) + 1)
-        w_dot = ((s[6] ** 2 - 1) * s[0] * s[1] - self.M(w=s[2])) / (
-            0.25 * (self.moi(s[6]) * (1 + s[6] ** 2) + 0.5 * (1 - s[6] ** 2) ** 2)
-        )
+            -(m0 + m1) * s[0] * s[2]
+            + self.rho_f * self.gamma(u=s[0], v=s[1], w=s[2], beta=s[6]) * s[0]
+            - np.pi * (self.rho_s - self.rho_f) * a * b * g * np.cos(s[5])
+            - self.G(u=s[0], v=s[1], beta=s[6])
+        ) / (m0 + m2)
+        w_dot = ((m1 - m2) * s[0] * s[1] - self.M(w=s[2], beta=s[6])) / (I_tot)
         x_dot = s[0] * np.cos(s[5]) - s[1] * np.sin(s[5])
         y_dot = s[0] * np.sin(s[5]) + s[1] * np.cos(s[5])
         theta_dot = s[2]
@@ -497,7 +658,7 @@ class Glider(gym.Env):
         """
         reward = (
             -self.dt
-            # + np.abs(self.target_x - self.x[-2])
+            + np.abs(self.target_x - self.x[-2])
             - np.abs(self.target_x - self.x[-1])
         )
         return reward
@@ -587,18 +748,17 @@ class Glider(gym.Env):
         obs = self.extract_observation()
         angle_out_of_bounds = self.check_angle_bound(angle=self.theta[-1])
         hit_ground = self.check_hit_ground(y=self.y[-1])
-        if angle_out_of_bounds:
-            # large penalty for flipping and end episode
-            reward = -1000
-            done = True
-        elif hit_ground:
+        # if angle_out_of_bounds:
+        #     # large penalty for flipping and end episode
+        #     reward = -1000
+        #     done = True
+        if hit_ground:
             reward = self.compute_reward()
-            reward += 300 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
+            reward += 25 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
             if self.t > 5:
-                reward += 300 * (np.exp(-((self.theta[-1] - self.target_theta) ** 2)))
-            # reward += 15 * (
-            #     np.exp(-5 * ((self.theta[-1] - self.target_theta) ** 2))
-            # )
+                reward += 25 * (
+                    np.exp(-5 * ((np.abs(self.theta[-1]) - self.target_theta) ** 2))
+                )
             done = True
         else:
             reward = self.compute_reward()

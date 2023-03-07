@@ -23,7 +23,7 @@ checkpoint_callback = CheckpointCallback(
 )
 
 # model = PPO.load(
-#     "pretrained_models/rl_model_900000_steps.zip",
+#     "pretrained_models/rl_model_600000_steps.zip",
 #     env=glider,
 #     tensorboard_log="big_state_logs/",
 # )

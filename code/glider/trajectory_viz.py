@@ -36,8 +36,8 @@ y_min, y_max = y.min(), y.max()
 theta = np.array(glider.theta)
 beta = np.array(glider.beta)
 n = beta.size
-width = np.sqrt(0.1/beta) # np.ones(shape=n)
-height = np.sqrt(0.1*beta)#beta * width
+width = 2 * glider.a(beta)  # np.ones(shape=n)
+height = 2 * glider.b(beta)  # beta * width
 
 fig, ax = plt.subplots()
 xdata, ydata = x, y
@@ -62,10 +62,19 @@ def update(frame):
         height=height[frame],
         angle=np.rad2deg(np.mod(theta[frame], 2 * np.pi)),
     )
+
     ax.add_artist(e)
     e.set_clip_box(ax.bbox)
     ax.scatter(x[frame], y[frame], marker="o", c="green", s=2)
     ax.scatter(glider.target_x, glider.terminal_y, marker="X", c="red", s=8)
+    scale = 0.1
+    ax.arrow(
+        x=x[frame],
+        y=y[frame],
+        dx=0.5 * np.cos(theta[frame]),
+        dy=0.5 * np.sin(theta[frame]),
+        width=0.5,
+    )
     if frame == beta.size - 1:
         ax.set_title(
             f"""delta_x/x = {np.round((glider.x[frame] - glider.target_x)/glider.target_x, 2)} and 
@@ -78,7 +87,7 @@ def update(frame):
 
 print("Writing video")
 ani = FuncAnimation(
-    fig, update, frames=n, init_func=init, blit=True, interval=5, repeat=False
+    fig, update, frames=n, init_func=init, blit=True, interval=100, repeat=False
 )
 writervideo = animation.FFMpegWriter(fps=30)
 ani.save(filename=video_name, writer=writervideo)
