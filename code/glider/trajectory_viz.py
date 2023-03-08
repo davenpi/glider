@@ -27,6 +27,7 @@ obs = glider.reset()
 while not done:
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, done, _ = glider.step(action.item())
+    print(f"Reward is {reward}")
 
 
 x = np.array(glider.x)
@@ -73,7 +74,7 @@ def update(frame):
         y=y[frame],
         dx=np.cos(theta[frame]),
         dy=np.sin(theta[frame]),
-        width=0.1,
+        width=1,
     )
     if frame == beta.size - 1:
         ax.set_title(

@@ -22,14 +22,14 @@ class Glider(gym.Env):
         rho_s: float = 2,
         rho_f: float = 1,
         beta0: float = 1,
-        u0: float = -0.1,
-        v0: float = 0.25,
+        u0: float = 0.1,
+        v0: float = 0.1,
         w0: float = 0.0,
         x0: float = 0,
         y0: float = 0,
-        theta0: float = np.pi / 8,
-        terminal_y: float = -20,
-        target_x: float = 10,
+        theta0: float = 0,
+        terminal_y: float = -300,
+        target_x: float = 200,
         beta_min: float = 0.1,
         ellipse_volume: float = 1,
     ):
@@ -62,7 +62,7 @@ class Glider(gym.Env):
         self.ang_limit = np.pi / 2
         self.terminal_y = terminal_y
         self.t_hist = [0]
-        self.t_max = 1000 * self.dt
+        self.t_max = 10000 * self.dt
         self.u_max = 8  # guess
         self.v_max = 4  # guess
         self.max_speed = 10
@@ -640,16 +640,20 @@ class Glider(gym.Env):
         beta_dot = self.lookup_dict[action]
         return beta_dot
 
-    def compute_reward(self) -> float:
+    def compute_reward(self, beta_dot: float) -> float:
         """
         Compute the reward the agent will normally receive.
 
+        The reward is a combination of a time reward and and energy reward
+        alongside a reward signal encouraging the agent to get closer to the
+        target. The relative weight between time based and energy based rewards
+        should be dictated by the kind of solution I am looking for.
         This is not the reward at all times because I have a diferent reward
-        for when the agent flips.
+        for when the episode ends.
 
         Paramters
         ---------
-        None
+        beta_dot : float
 
         Returns
         -------
@@ -658,8 +662,8 @@ class Glider(gym.Env):
         """
         reward = (
             -self.dt
-            + np.abs(self.target_x - self.x[-2])
-            - np.abs(self.target_x - self.x[-1])
+            # + np.abs(self.target_x - self.x[-2])
+            # - np.abs(self.target_x - self.x[-1])
         )
         return reward
 
@@ -746,22 +750,21 @@ class Glider(gym.Env):
         beta_dot = self.action_lookup(action)
         self.forward(beta_dot=beta_dot)
         obs = self.extract_observation()
-        angle_out_of_bounds = self.check_angle_bound(angle=self.theta[-1])
-        hit_ground = self.check_hit_ground(y=self.y[-1])
+        # angle_out_of_bounds = self.check_angle_bound(angle=self.theta[-1])
         # if angle_out_of_bounds:
         #     # large penalty for flipping and end episode
         #     reward = -1000
         #     done = True
+        reward = self.compute_reward(beta_dot=beta_dot)
+        hit_ground = self.check_hit_ground(y=self.y[-1])
         if hit_ground:
-            reward = self.compute_reward()
-            reward += 10 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
+            reward += 30 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
             # if self.t > 5:
             #     reward += 25 * (
             #         np.exp(-5 * ((np.abs(self.theta[-1]) - self.target_theta) ** 2))
             #     )
             done = True
         else:
-            reward = self.compute_reward()
             done = False
         info = {}
         return obs, reward, done, info
