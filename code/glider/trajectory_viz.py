@@ -47,20 +47,20 @@ pad = 2
 
 
 def init():
-    ax.set_xlim(-glider.target_x - pad, glider.target_x + pad)
+    ax.set_xlim(-x_min - pad, x_max + pad)
     ax.set_ylim(y_min, y_max + pad)
     return (ln,)
 
 
 def update(frame):
     ax.clear()
-    ax.set_xlim(-glider.target_x - pad, glider.target_x + pad)
+    ax.set_xlim(x_min - pad, x_max + pad)
     ax.set_ylim(y_min - pad / 2, y_max + pad)
     ln.set_data(xdata[frame], ydata[frame])
     e = Ellipse(
         xy=(x[frame], y[frame]),
-        width=width[frame],
-        height=height[frame],
+        width=5 * width[frame],
+        height=5 * height[frame],
         angle=np.rad2deg(np.mod(theta[frame], 2 * np.pi)),
     )
 
@@ -72,9 +72,9 @@ def update(frame):
     ax.arrow(
         x=x[frame],
         y=y[frame],
-        dx=np.cos(theta[frame]),
-        dy=np.sin(theta[frame]),
-        width=1,
+        dx=2 * np.cos(theta[frame]),
+        dy=2 * np.sin(theta[frame]),
+        width=0.5,
     )
     if frame == beta.size - 1:
         ax.set_title(

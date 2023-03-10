@@ -22,10 +22,10 @@ checkpoint_callback = CheckpointCallback(
     name_prefix="rl_model",
 )
 
-# model = PPO.load(
-#     "pretrained_models/rl_model_600000_steps.zip",
-#     env=glider,
-#     tensorboard_log="big_state_logs/",
-# )
-model = PPO("MlpPolicy", env=glider, tensorboard_log="big_state_logs/")
+model = PPO.load(
+    "nice_result/rl_model_600000_steps.zip",
+    env=glider,
+    tensorboard_log="big_state_logs/",
+)
+# model = PPO("MlpPolicy", env=glider, tensorboard_log="big_state_logs/")
 model.learn(total_timesteps=n, callback=checkpoint_callback, progress_bar=True)

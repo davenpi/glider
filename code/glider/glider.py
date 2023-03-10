@@ -29,7 +29,7 @@ class Glider(gym.Env):
         y0: float = 0,
         theta0: float = 0,
         terminal_y: float = -300,
-        target_x: float = 200,
+        target_x: float = 150,
         beta_min: float = 0.1,
         ellipse_volume: float = 1,
     ):
@@ -38,7 +38,7 @@ class Glider(gym.Env):
         """
         super(Glider, self).__init__()
         self.t = 0
-        self.dt = 0.1
+        self.dt = 0.25
         self.rho_s = rho_s
         self.mass = 1
         self.rho_f = rho_f
@@ -57,6 +57,7 @@ class Glider(gym.Env):
         self.v = [v0]
         self.w = [w0]
         self.x = [x0]
+        self.x_last = [x0]
         self.y = [y0]
         self.theta = [theta0]
         self.ang_limit = np.pi / 2
@@ -77,7 +78,7 @@ class Glider(gym.Env):
         self.action_space = gym.spaces.Discrete(3)
         self.target_x = target_x
         self.target_theta = np.pi / 4
-        self.lookup_dict = {0: 0, 1: 5, 2: -5}
+        self.lookup_dict = {0: 0, 1: 1, 2: -1}
 
     def a(self, beta: float) -> float:
         """
@@ -139,7 +140,7 @@ class Glider(gym.Env):
         V : float
             Instantaneous value of the characteristic velocity.
         """
-        V = np.sqrt((self.rho_s / self.rho_f - 1) * g * self.b(beta))
+        V = np.sqrt(np.abs(self.rho_s / self.rho_f - 1) * g * self.b(beta))
         return V
 
     def M(self, w: float, beta: float) -> float:
@@ -493,6 +494,7 @@ class Glider(gym.Env):
         self.w.extend(list(w[1:]))
         x = solution_object.y[3]
         self.x.extend(list(x[1:]))
+        self.x_last.append(x[-1])
         y = solution_object.y[4]
         self.y.extend(list(y[1:]))
         theta = solution_object.y[5]
@@ -660,10 +662,9 @@ class Glider(gym.Env):
         reward : float
             Reward given to the RL agent.
         """
-        reward = (
-            -self.dt
-            # + np.abs(self.target_x - self.x[-2])
-            # - np.abs(self.target_x - self.x[-1])
+        reward = -2 * self.dt + 5 * (
+            np.abs(self.target_x - self.x_last[-2])
+            - np.abs(self.target_x - self.x_last[-1])
         )
         return reward
 
@@ -781,6 +782,7 @@ class Glider(gym.Env):
         self.v = [self.v0]
         self.w = [self.w0]
         self.x = [self.x0]
+        self.x_last = [self.x0]
         self.y = [self.y0]
         self.theta = [self.theta0]
         self.beta = [self.beta0]
