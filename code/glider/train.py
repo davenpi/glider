@@ -18,14 +18,14 @@ n = int(args.steps)
 glider = Glider()
 checkpoint_callback = CheckpointCallback(
     save_freq=50_000,
-    save_path="./big_state_models/",
+    save_path="./energy_reward_models/",
     name_prefix="rl_model",
 )
 
-model = PPO.load(
-    "nice_result/rl_model_600000_steps.zip",
-    env=glider,
-    tensorboard_log="big_state_logs/",
-)
-# model = PPO("MlpPolicy", env=glider, tensorboard_log="big_state_logs/")
+# model = PPO.load(
+#     "nice_result/rl_model_600000_steps.zip",
+#     env=glider,
+#     tensorboard_log="big_state_logs/",
+# )
+model = PPO("MlpPolicy", env=glider, tensorboard_log="energy_reward_logs/")
 model.learn(total_timesteps=n, callback=checkpoint_callback, progress_bar=True)

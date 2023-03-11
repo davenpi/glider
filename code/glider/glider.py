@@ -662,7 +662,11 @@ class Glider(gym.Env):
         reward : float
             Reward given to the RL agent.
         """
-        reward = -2 * self.dt + 5 * (
+        # reward = -2 * self.dt + 5 * (
+        #     np.abs(self.target_x - self.x_last[-2])
+        #     - np.abs(self.target_x - self.x_last[-1])
+        # )
+        reward = -0.5 * (beta_dot**2) + 5 * (
             np.abs(self.target_x - self.x_last[-2])
             - np.abs(self.target_x - self.x_last[-1])
         )
@@ -721,7 +725,10 @@ class Glider(gym.Env):
 
     def step(self, action: float) -> tuple:
         """
-        Classic step method which moves the environment forward one step in time.
+        Move the environment forward one step in time.
+
+        This is the method which moves the environment forward in time one step
+        and returns (obs, reward, done, info).
 
         Parameters
         ----------
@@ -751,19 +758,10 @@ class Glider(gym.Env):
         beta_dot = self.action_lookup(action)
         self.forward(beta_dot=beta_dot)
         obs = self.extract_observation()
-        # angle_out_of_bounds = self.check_angle_bound(angle=self.theta[-1])
-        # if angle_out_of_bounds:
-        #     # large penalty for flipping and end episode
-        #     reward = -1000
-        #     done = True
         reward = self.compute_reward(beta_dot=beta_dot)
         hit_ground = self.check_hit_ground(y=self.y[-1])
         if hit_ground:
             reward += 30 * (np.exp(-((self.x[-1] - self.target_x) ** 2)))
-            # if self.t > 5:
-            #     reward += 25 * (
-            #         np.exp(-5 * ((np.abs(self.theta[-1]) - self.target_theta) ** 2))
-            #     )
             done = True
         else:
             done = False

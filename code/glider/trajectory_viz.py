@@ -12,6 +12,7 @@ from math import floor
 from glider import Glider
 from stable_baselines3 import PPO
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--fname", help="Video file name.", type=str)
 parser.add_argument("-n", "--model_n", help="Model to load", type=int)
@@ -21,7 +22,7 @@ video_name = args.fname
 
 
 glider = Glider()
-model = PPO.load("big_state_models/rl_model_" + str(n) + "_steps.zip", env=glider)
+model = PPO.load("energy_reward_models/rl_model_" + str(n) + "_steps.zip", env=glider)
 done = False
 obs = glider.reset()
 while not done:
