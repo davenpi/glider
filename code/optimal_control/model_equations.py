@@ -207,7 +207,11 @@ def M(w: float, beta: float) -> float:
         Value of the fluid torque given the current parameters.
     """
     L0 = a_fun(beta)
-    M = (np.pi * rho_f * a_fun(beta) ** 4) * (mu * V_fun(beta) / L0 + nu * ca.fabs(w)) * w
+    M = (
+        (np.pi * rho_f * a_fun(beta) ** 4)
+        * (mu * V_fun(beta) / L0 + nu * ca.fabs(w))
+        * w
+    )
     return M
 
 

@@ -18,7 +18,7 @@ D = np.zeros(d + 1)
 # Coefficients of the quadrature function
 B = np.zeros(d + 1)
 
-# Construct polynomial basis
+# Construct polynomial basi
 for j in range(d + 1):
     # Construct Lagrange polynomials to get the polynomial basis at the collocation point
     p = np.poly1d([1])
@@ -60,7 +60,7 @@ xdot = ca.vertcat(
         * me.a_fun(beta)
         * me.b_fun(beta)
         * me.g
-        * np.sin(theta)
+        * ca.sin(theta)
         - me.F(u, v, beta)
     )
     / (me.m0 + me.m1(beta)),
@@ -72,19 +72,19 @@ xdot = ca.vertcat(
         * me.a_fun(beta)
         * me.b_fun(beta)
         * me.g
-        * np.cos(theta)
+        * ca.cos(theta)
         - me.G(u, v, beta)
     )
     / (me.m0 + me.m2(beta)),
     ((me.m1(beta) - me.m2(beta)) * u * v - me.M(w, beta)) / me.moi_tot(beta),
-    u * np.cos(theta) - v * np.sin(theta),
-    u * np.sin(theta) + v * np.cos(theta),
+    u * ca.cos(theta) - v * ca.sin(theta),
+    u * ca.sin(theta) + v * ca.cos(theta),
     w,
     db_dt,
 )
 
 # objective term
-L = 1 + db_dt**2  # time plus energy
+L = x**2 + db_dt**2  # distance from x
 
 # continuous time dynamics
 f = ca.Function("f", [state, db_dt], [xdot, L], ["state", "db_dt"], ["xdot", "L"])
@@ -94,7 +94,7 @@ state_dim = 7
 # time horizon
 T = 17.0
 # number of control intervals
-N = 20
+N = 50
 h = T / N
 
 # Start with an empty NLP
@@ -112,8 +112,8 @@ x_plot = []
 u_plot = []
 
 # "Lift" initial conditions
-Xk = ca.MX.sym("X0", state_dim)
 x0 = [0.1, 0.1, 0, 0, 0, 0, 1]
+Xk = ca.MX.sym("X0", state_dim)
 w.append(Xk)
 lbw.append(x0)
 ubw.append(x0)
@@ -154,8 +154,8 @@ for k in range(N):
         # Append collocation equations
         fj, qj = f(Xc[j - 1], Uk)
         g.append(h * fj - xp)
-        lbg.append([0]*state_dim)
-        ubg.append([0]*state_dim)
+        lbg.append([0] * state_dim)
+        ubg.append([0] * state_dim)
 
         # Add contribution to the end state
         Xk_end = Xk_end + D[j] * Xc[j - 1]
@@ -163,18 +163,18 @@ for k in range(N):
         # Add contribution to quadrature function
         J = J + B[j] * qj * h
 
-# New NLP variable for state at end of interval
-Xk = ca.MX.sym("X_" + str(k + 1), state_dim)
-w.append(Xk)
-lbw.append([-np.inf, -np.inf, -np.inf, -np.inf, -300, -np.inf, 0.1])
-ubw.append([np.inf, np.inf, np.inf, np.inf, 0, np.inf, 10])
-w0.append(x0)
-x_plot.append(Xk)
+    # New NLP variable for state at end of interval
+    Xk = ca.MX.sym("X_" + str(k + 1), state_dim)
+    w.append(Xk)
+    lbw.append([-np.inf, -np.inf, -np.inf, -np.inf, -300, -np.inf, 0.1])
+    ubw.append([np.inf, np.inf, np.inf, np.inf, 0, np.inf, 10])
+    w0.append(x0)
+    x_plot.append(Xk)
 
 # Add equality constraint
 g.append(Xk_end - Xk)
-lbg.append([0]*state_dim)
-ubg.append([0]*state_dim)
+lbg.append([0] * state_dim)
+ubg.append([0] * state_dim)
 
 # Concatenate vectors
 w = ca.vertcat(*w)
