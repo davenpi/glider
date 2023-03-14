@@ -225,13 +225,13 @@ x_opt = x_opt.full()  # to numpy array
 u_opt = u_opt.full()  # to numpy array
 
 # Plot the result
-# tgrid = np.linspace(0, T, N + 1)
-# plt.figure(1)
-# plt.clf()
-# plt.plot(tgrid, x_opt[0], "--")
-# plt.plot(tgrid, x_opt[1], "-")
-# plt.step(tgrid, np.append(np.nan, u_opt[0]), "-.")
-# plt.xlabel("t")
-# plt.legend(["x1", "x2", "u"])
-# plt.grid()
-# plt.show()
+tgrid = np.linspace(0, T, N + 1)
+plt.figure(1)
+plt.clf()
+plt.plot(tgrid, x_opt[3], "--")
+plt.plot(tgrid, x_opt[4], "-")
+plt.step(tgrid, np.append(np.nan, u_opt[0]), "-.")
+plt.xlabel("t")
+plt.legend(["x", "y", "db_dt"])
+plt.grid()
+plt.show()
