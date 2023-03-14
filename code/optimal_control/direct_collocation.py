@@ -39,6 +39,16 @@ for j in range(d + 1):
     B[j] = pint(1.0)
 
 
+# size of state
+state_dim = 7
+# time horizon
+T = 1.0
+tf = ca.MX.sym("tf")
+p = ca.vertcat(tf)
+# number of control intervals
+N = 90
+h = T / N
+
 # declare model variables
 u = ca.MX.sym("u")
 v = ca.MX.sym("v")
@@ -52,7 +62,8 @@ db_dt = ca.MX.sym("db_dt")
 
 # dynamical equations
 xdot = ca.vertcat(
-    (
+    tf
+    * (
         (me.m0 + me.m2(beta)) * v * w
         - me.rho_f * me.gamma(u, v, w, beta) * v
         - np.pi
@@ -64,7 +75,8 @@ xdot = ca.vertcat(
         - me.F(u, v, beta)
     )
     / (me.m0 + me.m1(beta)),
-    (
+    tf
+    * (
         -(me.m0 + me.m1(beta)) * u * w
         + me.rho_f * me.gamma(u, v, w, beta) * u
         - np.pi
@@ -76,26 +88,25 @@ xdot = ca.vertcat(
         - me.G(u, v, beta)
     )
     / (me.m0 + me.m2(beta)),
-    ((me.m1(beta) - me.m2(beta)) * u * v - me.M(w, beta)) / me.moi_tot(beta),
-    u * ca.cos(theta) - v * ca.sin(theta),
-    u * ca.sin(theta) + v * ca.cos(theta),
-    w,
-    db_dt,
+    tf * ((me.m1(beta) - me.m2(beta)) * u * v - me.M(w, beta)) / me.moi_tot(beta),
+    tf * (u * ca.cos(theta) - v * ca.sin(theta)),
+    tf * (u * ca.sin(theta) + v * ca.cos(theta)),
+    tf * w,
+    tf * db_dt,
 )
 
 # objective term
-L = x**2 + db_dt**2  # distance from x
+L = x**2 + 2 * db_dt**2
+
+# initial state and bounds
+x0 = [0.1, 0.1, 0, 0, 0, 0, 1]
+x_lb = [-np.inf, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf, 0.1]
+x_ub = [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, 10]
 
 # continuous time dynamics
-f = ca.Function("f", [state, db_dt], [xdot, L], ["state", "db_dt"], ["xdot", "L"])
-
-# size of state
-state_dim = 7
-# time horizon
-T = 17.0
-# number of control intervals
-N = 50
-h = T / N
+f = ca.Function(
+    "f", [state, db_dt, p], [xdot, L], ["state", "db_dt", "p"], ["xdot", "L"]
+)
 
 # Start with an empty NLP
 w = []
@@ -111,8 +122,17 @@ ubg = []
 x_plot = []
 u_plot = []
 
+p_lb = [10.0]
+p_ub = [20.0]
+p0 = [17.0]
+# NLP Variables for the parameters to optimize
+P = ca.MX.sym("P", 1)  # one parameter to optimize over
+w.append(P)
+lbw.append(p_ub)  # ending it at a given time for now
+ubw.append(p_ub)
+w0.append(p0)
+
 # "Lift" initial conditions
-x0 = [0.1, 0.1, 0, 0, 0, 0, 1]
 Xk = ca.MX.sym("X0", state_dim)
 w.append(Xk)
 lbw.append(x0)
@@ -124,13 +144,15 @@ x_plot.append(Xk)
 # Formulate the NLP
 u_ub = 0.5
 u_lb = -0.5
+u0 = 0.0
+
 for k in range(N):
     # New NLP variable for the control
     Uk = ca.MX.sym("U_" + str(k))
     w.append(Uk)
     lbw.append([u_lb])
     ubw.append([u_ub])
-    w0.append([0.0])
+    w0.append([u0])  # initial control
     u_plot.append(Uk)
 
     # State at collocation points
@@ -139,8 +161,8 @@ for k in range(N):
         Xkj = ca.MX.sym("X_" + str(k) + "_" + str(j), state_dim)
         Xc.append(Xkj)
         w.append(Xkj)
-        lbw.append([-np.inf, -np.inf, -np.inf, -np.inf, -300, -np.inf, 0.1])
-        ubw.append([np.inf, np.inf, np.inf, np.inf, 0, np.inf, 10])
+        lbw.append(x_lb)
+        ubw.append(x_ub)
         w0.append(x0)
 
     # Loop over collocation points
@@ -152,7 +174,7 @@ for k in range(N):
             xp = xp + C[r + 1, j] * Xc[r]
 
         # Append collocation equations
-        fj, qj = f(Xc[j - 1], Uk)
+        fj, qj = f(Xc[j - 1], Uk, P)
         g.append(h * fj - xp)
         lbg.append([0] * state_dim)
         ubg.append([0] * state_dim)
@@ -171,10 +193,10 @@ for k in range(N):
     w0.append(x0)
     x_plot.append(Xk)
 
-# Add equality constraint
-g.append(Xk_end - Xk)
-lbg.append([0] * state_dim)
-ubg.append([0] * state_dim)
+    # Add equality constraint
+    g.append(Xk_end - Xk)
+    lbg.append([0] * state_dim)
+    ubg.append([0] * state_dim)
 
 # Concatenate vectors
 w = ca.vertcat(*w)

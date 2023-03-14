@@ -14,7 +14,7 @@ nu = 0.2
 g = 9.81
 rho_f = 1
 rho_s = 2
-vol = 1
+vol = 0.1
 m0 = np.pi * rho_s * vol  # mass.
 
 
