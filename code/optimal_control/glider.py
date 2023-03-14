@@ -3,6 +3,7 @@ Contains methods to solve the swing time-optimal control problem. From Petur.
 """
 
 import os
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import casadi as ca
@@ -18,6 +19,12 @@ def glider():
 
     # Degree of interpolating polynomial
     d = 3
+
+    # Control discretization
+    N = 100  # number of control intervals
+    print("-----------------")
+    print(f"The number of control intervals is {N}")
+    print("-----------------")
 
     # Time horizon. This is a trick to make the final time a parameter for the
     # time optimal problem.
@@ -75,7 +82,7 @@ def glider():
     )
 
     # Objective term. The thing to be minimized by the controller.
-    L = x**2 + db_dt**2
+    L = (x - 5) ** 2 + db_dt**2
 
     # Define the casadi function we will pass to the solver.
     f = ca.Function(
@@ -99,20 +106,33 @@ def glider():
     u_ub = 1.0
 
     # Parameter bounds and initial guess
-    tf_guess = 17
-    p_lb = [tf_guess]
-    p_ub = [tf_guess]
+    tf_guess = 17.0
+    p_lb = [tf_guess - 10]
+    p_ub = [tf_guess + 10]
     p_lb2 = [10.0]
     p_ub2 = [20.0]
     p0 = [tf_guess]
 
-    # Control discretization
-    N = 30  # number of control intervals
+    # Open the file in binary mode
+    with open("file.pkl", "rb") as file:
+        # Call load method to deserialze
+        opt_guess = pickle.load(file)
 
-    x_opt, u_opt, opt_guess, _ = collocation_solver(
-        f, x0, x_lb, x_ub, N, T, u_lb=u_lb, u_ub=u_ub, p0=p0, p_lb=p_lb, p_ub=p_ub, d=d
+    x_opt, u_opt, opt_guess, sol = collocation_solver(
+        f,
+        x0,
+        x_lb,
+        x_ub,
+        N,
+        T,
+        u_lb=u_lb,
+        u_ub=u_ub,
+        p0=p0,
+        p_lb=p_lb,
+        p_ub=p_ub,
+        d=d,
+        # opt_guess=opt_guess,
     )
-
     # Plot the result
     tgrid = np.linspace(0, T, N + 1)
     # plt.plot(x_opt[0], x_opt[1])
@@ -126,7 +146,7 @@ def glider():
     plt.legend(["x", "y", "db_dt"])
     plt.grid()
     plt.show()
-    return
+    return x_opt, u_opt, opt_guess, sol
 
 
 # import casadi as cas

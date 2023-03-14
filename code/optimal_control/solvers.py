@@ -59,7 +59,9 @@ def collocation_solver(
         p0 = [0.0] * n_p
 
     # Get collocation points
-    tau_root = np.append(0, cas.collocation_points(d, "legendre"))
+    tau_root = np.append(
+        0, cas.collocation_points(d, "legendre")
+    )  # can use radau. don't know it but something to try
 
     # Coefficients of the collocation equation
     C = np.zeros((d + 1, d + 1))
@@ -186,6 +188,9 @@ def collocation_solver(
         lbg.append([0.0] * n_eq)
         ubg.append([0.0] * n_eq)
 
+    # print("Before concatenation.\n")
+    # print(f"w0 is {w0}\n")
+
     # Concatenate vectors
     w = cas.vertcat(*w)
     g = cas.vertcat(*g)
@@ -196,6 +201,8 @@ def collocation_solver(
     ubw = np.concatenate(ubw)
     lbg = np.concatenate(lbg)
     ubg = np.concatenate(ubg)
+    # print("After concatenation.\n")
+    # print(f"w0 is {w0}\n")
 
     # Create an NLP solver
     prob = {"f": J, "x": w, "g": g}
@@ -211,6 +218,7 @@ def collocation_solver(
     if opt_guess is not None:
         sol = solver(x0=opt_guess, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
     else:
+        # w0 = np.load("test_w0.npy")
         sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
 
     x_opt, u_opt = trajectories(sol["x"])
