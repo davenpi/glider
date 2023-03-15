@@ -11,6 +11,7 @@ import pickle
 from math import floor
 
 x_opt = np.load("optimal_sol.npy")
+u_opt = np.load("optimal_u.npy")
 x = np.array(x_opt[3])
 x_min, x_max = x.min(), x.max()
 y = np.array(x_opt[4])
@@ -18,8 +19,8 @@ y_min, y_max = y.min(), y.max()
 theta = np.array(x_opt[5])
 beta = np.array(x_opt[6])
 n = beta.size
-width = np.sqrt(1 / beta)  # np.ones(shape=n)
-height = np.sqrt(beta)  # beta * width
+width = np.sqrt(1 / beta)
+height = np.sqrt(beta)
 
 fig, ax = plt.subplots()
 xdata, ydata = x, y
@@ -63,9 +64,9 @@ def update(frame):
 
 print("Writing video")
 ani = FuncAnimation(
-    fig, update, frames=n, init_func=init, blit=True, interval=100, repeat=False
+    fig, update, frames=n, init_func=init, blit=True, interval=20, repeat=False
 )
-writervideo = animation.FFMpegWriter(fps=10)
+writervideo = animation.FFMpegWriter(fps=30)
 ani.save(filename="sample_oct.mp4", writer=writervideo)
 plt.close()
 
@@ -92,11 +93,10 @@ ax[0, 0].plot(theta)
 ax[0, 0].set_ylabel(r"$\theta$")
 ax[0, 1].plot(x)
 ax[0, 1].set_ylabel("X")
-
 ax[1, 0].plot(y)
 ax[1, 0].set_ylabel("Y")
-
 ax[1, 1].plot(beta)
+ax[1, 1].plot(u_opt[0])
 ax[1, 1].set_ylabel(r"$\beta$")
 v = x_opt[1]
 ax[2, 0].plot(v)
@@ -111,7 +111,6 @@ ax[3, 0].set_ylabel("W")
 ax[3, 1].scatter(x, y)
 ax[3, 1].set_xlabel("X")
 ax[3, 1].set_ylabel("Y")
-
 
 plt.savefig("logged_info.png")
 plt.close()

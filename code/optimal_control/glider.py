@@ -87,19 +87,26 @@ def glider(N: int):
     )
 
     # Objective term. The thing to be minimized by the controller.
-    L = (x - 20) ** 2 + 20 * db_dt**2
+    L = -(x**2) + db_dt**2
+    L2 = tf
 
     # Define the casadi function we will pass to the solver.
     f = ca.Function(
         "f", [state, db_dt, p], [xdot, L], ["state", "db_dt", "p"], ["xdot", "L"]
+    )
+    f2 = ca.Function(
+        "f", [state, db_dt, p], [xdot, L2], ["state", "db_dt", "p"], ["xdot", "L"]
     )
 
     # initial state
     x0 = [0.1, 0.1, 0, 0, 0, 0, 1]
 
     # Final state
-    y_f = -20
-    eq = y - y_f
+    y_f = -10
+    eq1 = y - y_f
+    x_f = 11
+    eq2 = x - x_f
+    eq = ca.vertcat(eq1, eq2)
     xf_eq = ca.Function("xf_eq", [state], [eq], ["state"], ["eq"])
 
     # State Constraints
@@ -119,9 +126,9 @@ def glider(N: int):
     p0 = [tf_guess]
 
     # Open the file in binary mode
-    with open("file.pkl", "rb") as file:
-        # Call load method to deserialze
-        opt_guess = pickle.load(file)
+    # with open("file.pkl", "rb") as file:
+    #     # Call load method to deserialze
+    #     opt_guess = pickle.load(file)
 
     x_opt, u_opt, opt_guess, sol = collocation_solver(
         f,
@@ -136,18 +143,31 @@ def glider(N: int):
         p_lb=p_lb,
         p_ub=p_ub,
         d=d,
+        xf_eq=xf_eq,
         # opt_guess=opt_guess,
+    )
+
+    x_opt2, u_opt2, _, _ = collocation_solver(
+        f2,
+        x0,
+        x_lb,
+        x_ub,
+        N,
+        T,
+        xf_eq=xf_eq,
+        u_lb=u_lb,
+        u_ub=u_ub,
+        p0=p0,
+        p_lb=p_lb2,
+        p_ub=p_ub2,
+        opt_guess=opt_guess,
+        d=d,
     )
     # Plot the result
     tgrid = np.linspace(0, T, N + 1)
-    # plt.plot(x_opt[0], x_opt[1])
-    # plt.legend(['x1','x2'])
-    plt.plot(tgrid, x_opt[3])
-    plt.plot(tgrid, x_opt[4])
+    plt.plot(tgrid, x_opt2[3])
+    plt.plot(tgrid, x_opt2[4])
     plt.step(tgrid, np.append(np.nan, u_opt[0]), "-.")
-    # plt.step(tgrid, np.append(np.nan, u_opt2[0]), "-.")
-    # plt.plot(tgrid, x_opt[2], '--')
-    # plt.xlabel('t')
     plt.legend(["x", "y", "db_dt"])
     plt.grid()
     plt.show()
