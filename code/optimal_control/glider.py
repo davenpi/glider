@@ -12,16 +12,21 @@ import model_equations as me
 from solvers import collocation_solver
 
 
-def glider():
+def glider(N: int):
     """
     Implement the glider dynamics and define the control problem.
+
+    Parameters
+    ----------
+    N : int
+        Number of control intervals.
     """
 
     # Degree of interpolating polynomial
     d = 3
 
     # Control discretization
-    N = 100  # number of control intervals
+    N = N  # number of control intervals
     print("-----------------")
     print(f"The number of control intervals is {N}")
     print("-----------------")
@@ -82,7 +87,7 @@ def glider():
     )
 
     # Objective term. The thing to be minimized by the controller.
-    L = (x - 5) ** 2 + db_dt**2
+    L = (x - 20) ** 2 + 20 * db_dt**2
 
     # Define the casadi function we will pass to the solver.
     f = ca.Function(

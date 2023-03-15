@@ -40,8 +40,8 @@ def update(frame):
     ln.set_data(xdata[frame], ydata[frame])
     e = Ellipse(
         xy=(x[frame], y[frame]),
-        width=5 * width[frame],
-        height=5 * height[frame],
+        width=width[frame],
+        height=height[frame],
         angle=np.rad2deg(np.mod(theta[frame], 2 * np.pi)),
     )
 
@@ -53,9 +53,9 @@ def update(frame):
     ax.arrow(
         x=x[frame],
         y=y[frame],
-        dx=2 * np.cos(theta[frame]),
-        dy=2 * np.sin(theta[frame]),
-        width=0.5,
+        dx=np.cos(theta[frame]),
+        dy=np.sin(theta[frame]),
+        width=0.1,
     )
 
     return (ln,)
@@ -82,3 +82,36 @@ ells = [
     )
     for i in np.arange(start=0, stop=n, step=floor(n / 20))
 ]
+
+
+print("Plotting logged data")
+fig, ax = plt.subplots(nrows=4, ncols=2, figsize=(10, 8))
+fig.text(0.5, 0.04, "Time", ha="center")
+fig.suptitle("Logged info from trajectory", fontsize=20)
+ax[0, 0].plot(theta)
+ax[0, 0].set_ylabel(r"$\theta$")
+ax[0, 1].plot(x)
+ax[0, 1].set_ylabel("X")
+
+ax[1, 0].plot(y)
+ax[1, 0].set_ylabel("Y")
+
+ax[1, 1].plot(beta)
+ax[1, 1].set_ylabel(r"$\beta$")
+v = x_opt[1]
+ax[2, 0].plot(v)
+ax[2, 0].set_ylabel("V")
+u = x_opt[0]
+ax[2, 1].plot(u)
+ax[2, 1].set_ylabel("U")
+w = x_opt[2]
+ax[3, 0].plot(w)
+ax[3, 0].set_ylabel("W")
+# trajectory
+ax[3, 1].scatter(x, y)
+ax[3, 1].set_xlabel("X")
+ax[3, 1].set_ylabel("Y")
+
+
+plt.savefig("logged_info.png")
+plt.close()
