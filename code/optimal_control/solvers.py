@@ -30,6 +30,7 @@ def collocation_solver(
     opt_guess=None,
     d=3,
     ipopt_options=None,
+    use_upsampled_prior=False,
 ):
     if ipopt_options is None:
         ipopt_options = {
@@ -50,6 +51,7 @@ def collocation_solver(
     print(f"The dimension of the control is {m}")
     n_p = f.size1_in(2)
     print(f"The number of parameters is {n_p}")
+    print("---\n\n")
 
     if p_lb is None:
         p_lb = [-np.inf] * n_p
@@ -219,7 +221,8 @@ def collocation_solver(
         print("Using opt_guess")
         sol = solver(x0=opt_guess, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
     else:
-        w0 = np.load("double_w0.npy")
+        if use_upsampled_prior:
+            w0 = np.load("double_w0.npy")
         # w0 = np.load("w0.npy")
         sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
 
