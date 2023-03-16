@@ -102,11 +102,12 @@ def glider(N: int):
     x0 = [0.1, 0.1, 0, 0, 0, 0, 1]
 
     # Final state
-    y_f = -10
+    y_f = -100
     eq1 = y - y_f
-    x_f = 11
+    x_f = 121
     eq2 = x - x_f
     eq = ca.vertcat(eq1, eq2)
+
     xf_eq = ca.Function("xf_eq", [state], [eq], ["state"], ["eq"])
 
     # State Constraints
@@ -119,16 +120,16 @@ def glider(N: int):
 
     # Parameter bounds and initial guess
     tf_guess = 17.0
-    p_lb = [tf_guess - 10]
-    p_ub = [tf_guess + 10]
-    p_lb2 = [10.0]
-    p_ub2 = [20.0]
+    p_lb = [tf_guess - 15]
+    p_ub = [tf_guess + 150]
+    p_lb2 = [5.0]
+    p_ub2 = [180.0]
     p0 = [tf_guess]
 
     # Open the file in binary mode
-    # with open("file.pkl", "rb") as file:
-    #     # Call load method to deserialze
-    #     opt_guess = pickle.load(file)
+    with open("opt_guess_with_beta_dot.pkl", "rb") as file:
+        # Call load method to deserialze
+        opt_guess_bd = pickle.load(file)
 
     x_opt, u_opt, opt_guess, sol = collocation_solver(
         f,
@@ -144,7 +145,7 @@ def glider(N: int):
         p_ub=p_ub,
         d=d,
         xf_eq=xf_eq,
-        # opt_guess=opt_guess,
+        opt_guess=opt_guess_bd,
     )
 
     x_opt2, u_opt2, _, _ = collocation_solver(
@@ -164,14 +165,14 @@ def glider(N: int):
         d=d,
     )
     # Plot the result
-    tgrid = np.linspace(0, T, N + 1)
-    plt.plot(tgrid, x_opt2[3])
-    plt.plot(tgrid, x_opt2[4])
-    plt.step(tgrid, np.append(np.nan, u_opt[0]), "-.")
-    plt.legend(["x", "y", "db_dt"])
-    plt.grid()
-    plt.show()
-    return x_opt, u_opt, opt_guess, sol
+    # tgrid = np.linspace(0, T, N + 1)
+    # plt.plot(tgrid, x_opt2[3])
+    # plt.plot(tgrid, x_opt2[4])
+    # plt.step(tgrid, np.append(np.nan, u_opt[0]), "-.")
+    # plt.legend(["x", "y", "db_dt"])
+    # plt.grid()
+    # plt.show()
+    return x_opt2, u_opt2, opt_guess, sol
 
 
 # import casadi as cas

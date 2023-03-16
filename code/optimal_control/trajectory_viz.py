@@ -10,7 +10,7 @@ import matplotlib.animation as animation
 import pickle
 from math import floor
 
-x_opt = np.load("optimal_sol.npy")
+x_opt = np.load("optimal_x.npy")
 u_opt = np.load("optimal_u.npy")
 x = np.array(x_opt[3])
 x_min, x_max = x.min(), x.max()
