@@ -20,6 +20,15 @@ def glider(
     """
     Implement the glider dynamics and define the control problem.
 
+    The reason for many of the extra boolean arguments is because I need to
+    solve a different version of the control problem to create an initial guess
+    for the time optimal problem. The boolean flags are used to indicate which
+    problem I am solving and whether or not I want to use prior solutions as an
+    initial guess.
+    Also x_f is determined during the initial guess building phase. x_f is
+    given by the maximum x that is reached when solving the first optimization
+    problem.
+
     Parameters
     ----------
     N : int
@@ -108,9 +117,10 @@ def glider(
     )
 
     # Objective term. The thing to be minimized by the controller.
-    L = -(x/(2*y_f))**2 + 0.125*db_dt**2
+    L = -(x**2) + db_dt**2
     if energy_optimal:
-        L2 = tf + 10 * (tf**2) * db_dt**2
+        L2 = db_dt**2
+        print(L2)
     else:
         L2 = tf
 
@@ -130,11 +140,11 @@ def glider(
     eq1 = y - y_f
     if x_f == 0:
         eq = eq1
-        print(f"Target x is {x_f}")
     else:
         eq2 = x - x_f
         eq = ca.vertcat(eq1, eq2)
-        print(f"Target x is {x_f}")
+
+    print(f"Target x is {x_f}")
 
     xf_eq = ca.Function("xf_eq", [state], [eq], ["state"], ["eq"])
 

@@ -66,7 +66,7 @@ print("Writing video")
 ani = FuncAnimation(
     fig, update, frames=n, init_func=init, blit=True, interval=20, repeat=False
 )
-writervideo = animation.FFMpegWriter(fps=30)
+writervideo = animation.FFMpegWriter(fps=10)
 ani.save(filename="sample_oct.mp4", writer=writervideo)
 plt.close()
 
