@@ -8,14 +8,13 @@ import model_equations as me
 from solvers import collocation_solver
 
 
-def glider(
+def optimal_glider(
     N: int,
     use_upsampled_prior: bool,
     y_f: float,
     x_f: float,
-    solve_2nd_optim: bool,
-    using_opt_guess: bool,
-    energy_optimal: bool,
+    energy_optimal: bool = False,
+    opt_guess=None,
 ):
     """
     Implement the glider dynamics and define the control problem.
@@ -38,17 +37,11 @@ def glider(
         I want to use a prior solution I constructed as an initial guess. In
         particular these prior solutions are the upsampled prior solutions from
         previous runs.
-    solve_2nd_optim : bool
-        Flag that is true if I am interested in solving the time optimal
-        problem or the energy optimal problem.
     y_f : float
         The final y position we are aiming for.
     x_f : float
         The final x position we are aiming for. Set to 0 if we are not
         including a final x target.
-    using_opt_guess: bool
-        True if we are using an optimal x returned by the solver for an
-        initial guess.
     energy_optimal: bool
         True if we want to solve the energy optimal problem.
     """
@@ -57,9 +50,6 @@ def glider(
 
     # Control discretization
     N = N  # number of control intervals
-    print("-----------------")
-    print(f"The number of control intervals is {N}")
-    print("-----------------")
 
     # Time horizon. This is a trick to make the final time a parameter for the
     # time optimal problem.
@@ -117,19 +107,14 @@ def glider(
     )
 
     # Objective term. The thing to be minimized by the controller.
-    L = -(x**2) + db_dt**2
     if energy_optimal:
-        L2 = db_dt**2
-        print(L2)
+        L = db_dt**2
     else:
-        L2 = tf
+        L = tf
 
     # Define the casadi function we will pass to the solver.
     f = ca.Function(
         "f", [state, db_dt, p], [xdot, L], ["state", "db_dt", "p"], ["xdot", "L"]
-    )
-    f2 = ca.Function(
-        "f", [state, db_dt, p], [xdot, L2], ["state", "db_dt", "p"], ["xdot", "L"]
     )
 
     # initial state
@@ -138,16 +123,14 @@ def glider(
     # Final state
     y_f = y_f
     eq1 = y - y_f
-    if x_f == 0:
-        eq = eq1
-    else:
-        eq2 = x - x_f
-        eq = ca.vertcat(eq1, eq2)
+    eq2 = x - x_f
+    # eq3 = theta - np.pi / 4
+    eq = ca.vertcat(eq1, eq2)
 
     xf_eq = ca.Function("xf_eq", [state], [eq], ["state"], ["eq"])
 
     # State Constraints
-    x_lb = [-np.inf, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf, 0.1]
+    x_lb = [-np.inf, -np.inf, -np.inf, -np.inf, y_f, -np.inf, 0.1]
     x_ub = [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, 10]
 
     # Control bounds
@@ -156,61 +139,29 @@ def glider(
 
     # Parameter bounds and initial guess
     tf_guess = 17.0
-    p_lb = [1]
-    p_ub = [180]
-    p_lb2 = [1.0]
-    p_ub2 = [180.0]
+    p_lb = [1.0]
+    p_ub = [180.0]
     p0 = [tf_guess]
 
-    # Open the file in binary mode
-    if using_opt_guess:
-        with open("opt_guess_with_beta_dot.pkl", "rb") as file:
-            # Call load method to deserialze
-            opt_guess_bd = pickle.load(file)
-    else:
-        opt_guess_bd = None
-
-    x_opt, u_opt, opt_guess, sol = collocation_solver(
+    x_opt, u_opt, sol_x, sol = collocation_solver(
         f,
         x0,
         x_lb,
         x_ub,
         N,
         T,
+        xf_eq=xf_eq,
         u_lb=u_lb,
         u_ub=u_ub,
         p0=p0,
         p_lb=p_lb,
         p_ub=p_ub,
-        d=d,
-        xf_eq=xf_eq,
+        opt_guess=opt_guess,
         use_upsampled_prior=use_upsampled_prior,
-        opt_guess=opt_guess_bd,
+        d=d,
     )
-
-    if solve_2nd_optim:
-        print("Solving the 2nd optimzation problem \n")
-        x_opt2, u_opt2, _, _ = collocation_solver(
-            f2,
-            x0,
-            x_lb,
-            x_ub,
-            N,
-            T,
-            xf_eq=xf_eq,
-            u_lb=u_lb,
-            u_ub=u_ub,
-            p0=p0,
-            p_lb=p_lb2,
-            p_ub=p_ub2,
-            opt_guess=opt_guess,
-            use_upsampled_prior=False,
-            d=d,
-        )
-        return x_opt2, u_opt2, _, _
-    else:
-        return x_opt, u_opt, opt_guess, sol
+    return x_opt, u_opt, sol_x, sol
 
 
 if __name__ == "__main__":
-    glider()
+    optimal_glider()

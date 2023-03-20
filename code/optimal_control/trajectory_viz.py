@@ -1,6 +1,7 @@
 """
 This file creates movies showing glider trajectories over time.
 """
+import argparse
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,8 +11,15 @@ import matplotlib.animation as animation
 import pickle
 from math import floor
 
-x_opt = np.load("optimal_x.npy")
-u_opt = np.load("optimal_u.npy")
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-p", "--opt_path", help="Path to optimal arrays", type=str)
+
+args = parser.parse_args()
+path = args.opt_path
+
+x_opt = np.load(path + "/x_opt.npy")
+u_opt = np.load(path + "/u_opt.npy")
 x = np.array(x_opt[3])
 x_min, x_max = x.min(), x.max()
 y = np.array(x_opt[4])
@@ -66,8 +74,8 @@ print("Writing video")
 ani = FuncAnimation(
     fig, update, frames=n, init_func=init, blit=True, interval=20, repeat=False
 )
-writervideo = animation.FFMpegWriter(fps=10)
-ani.save(filename="sample_oct.mp4", writer=writervideo)
+writervideo = animation.FFMpegWriter(fps=30)
+ani.save(filename=path + "/sample_oct.mp4", writer=writervideo)
 plt.close()
 
 
@@ -98,6 +106,7 @@ ax[1, 0].set_ylabel("Y")
 ax[1, 1].plot(beta)
 ax[1, 1].plot(u_opt[0])
 ax[1, 1].set_ylabel(r"$\beta$")
+ax[1, 1].legend(("beta", "beta_dot"))
 v = x_opt[1]
 ax[2, 0].plot(v)
 ax[2, 0].set_ylabel("V")
@@ -112,5 +121,5 @@ ax[3, 1].scatter(x, y)
 ax[3, 1].set_xlabel("X")
 ax[3, 1].set_ylabel("Y")
 
-plt.savefig("logged_info.png")
+plt.savefig(path + "/logged_info.png")
 plt.close()

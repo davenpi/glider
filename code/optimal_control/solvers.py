@@ -187,8 +187,8 @@ def collocation_solver(
     elif xf_eq is not None:
         g.append(xf_eq(Xk))  # Xk is the final state
         n_eq = xf_eq.size1_out(0)
-        lbg.append([0.0] * n_eq)
-        ubg.append([0.0] * n_eq)
+        lbg.append([0] * n_eq)
+        ubg.append([0] * n_eq)
 
     # print("Before concatenation.\n")
     # print(f"w0 is {w0}\n")
@@ -223,7 +223,7 @@ def collocation_solver(
     else:
         if use_upsampled_prior:
             w0 = np.load("double_w0.npy")
-        # w0 = np.load("w0.npy")
+            w0 = np.load("w0.npy")
         sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
 
     x_opt, u_opt = trajectories(sol["x"])
