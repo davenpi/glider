@@ -219,12 +219,9 @@ def collocation_solver(
     # Solve the NLP
     if opt_guess is None:
         if use_upsampled_prior:
-            w0 = np.load("double_w0.npy")
+            w0 = np.load("upsamp_w0.npy")
             # w0 = np.load("w0.npy")
         sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
-
-        print("Using opt_guess")
-        sol = solver(x0=opt_guess, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
     else:
         print("Using opt_guess")
         sol = solver(x0=opt_guess, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
