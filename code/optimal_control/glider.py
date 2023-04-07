@@ -101,7 +101,7 @@ def glider(
         * ca.cos(theta)
         - me.G(u, v, beta)
     ) / (me.m0 + me.m2(beta))
-    dx_w = tf * ((me.m1(beta) - me.m2(beta)) * u * v - me.M(w, beta)) / me.moi_tot(beta)
+    dx_w = ((me.m1(beta) - me.m2(beta)) * u * v - me.M(w, beta)) / me.moi_tot(beta)
     dx_x = u * ca.cos(theta) - v * ca.sin(theta)
     dx_y = u * ca.sin(theta) + v * ca.cos(theta)
     dx_theta = w

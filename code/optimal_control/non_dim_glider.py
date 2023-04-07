@@ -81,7 +81,7 @@ def glider(
     # model equations
     dx_u = (
         (me.moi(beta) + 1) * v * w - me.gamma(u, v, w) * v - ca.sin(theta) - me.F(u, v)
-    ) / (1 + beta**2)
+    ) / (me.moi(beta) + beta**2)
     dx_v = (
         -(me.moi(beta) + beta**2) * u * w
         + me.gamma(u, v, w) * u
@@ -94,7 +94,7 @@ def glider(
     dx_x = u * ca.cos(theta) - v * ca.sin(theta)
     dx_y = u * ca.sin(theta) + v * ca.cos(theta)
     dx_theta = w  # works with tf*w here. very weird
-    dx_beta = -(beta - 1) / 2 + db_dt
+    dx_beta = -(beta - 1) + db_dt
     xdot = ca.vertcat(
         tf * dx_u,
         tf * dx_v,
@@ -106,7 +106,7 @@ def glider(
     )
 
     # Objective term. The thing to be minimized by the controller.
-    L = -(x**2)  # + db_dt**2
+    L = -1 + db_dt**2
     if energy_optimal:
         L2 = db_dt**2
         print(L2)
@@ -131,12 +131,13 @@ def glider(
         eq = eq1
     else:
         eq2 = x - x_f
-        eq = ca.vertcat(eq1, eq2)
+        eq3 = theta - np.pi / 4
+        eq = ca.vertcat(eq1, eq2, eq3)
 
     xf_eq = ca.Function("xf_eq", [state], [eq], ["state"], ["eq"])
 
     # State Constraints
-    x_lb = [-np.inf, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf, 0.1]
+    x_lb = [-np.inf, -np.inf, -np.inf, -np.inf, y_f, -np.inf, 0.1]
     x_ub = [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, 10]
 
     # Control bounds

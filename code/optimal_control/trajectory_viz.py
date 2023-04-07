@@ -20,15 +20,16 @@ path = args.opt_path
 
 x_opt = np.load(path + "/x_opt.npy")
 u_opt = np.load(path + "/u_opt.npy")
-x = np.array(x_opt[3])
+x = x_opt[3]
 x_min, x_max = x.min(), x.max()
-y = np.array(x_opt[4])
+y = x_opt[4]
 y_min, y_max = y.min(), y.max()
 theta = np.array(x_opt[5])
 beta = np.array(x_opt[6])
 n = beta.size
-width = np.sqrt(1 / beta)
-height = np.sqrt(beta)
+width = 5 * np.sqrt(1 / beta)
+height = 5 * np.sqrt(beta)
+tgrid = np.linspace(start=0, stop=1, num=x.size)
 
 fig, ax = plt.subplots()
 xdata, ydata = x, y
@@ -64,7 +65,7 @@ def update(frame):
         y=y[frame],
         dx=np.cos(theta[frame]),
         dy=np.sin(theta[frame]),
-        width=0.1,
+        width=1,
     )
 
     return (ln,)
@@ -97,13 +98,13 @@ print("Plotting logged data")
 fig, ax = plt.subplots(nrows=4, ncols=2, figsize=(10, 8))
 fig.text(0.5, 0.04, "Time", ha="center")
 fig.suptitle("Logged info from trajectory", fontsize=20)
-ax[0, 0].plot(theta)
+ax[0, 0].plot(tgrid, theta)
 ax[0, 0].set_ylabel(r"$\theta$")
-ax[0, 1].plot(x)
+ax[0, 1].plot(tgrid, x)
 ax[0, 1].set_ylabel("X")
-ax[1, 0].plot(y)
+ax[1, 0].plot(tgrid, y)
 ax[1, 0].set_ylabel("Y")
-ax[1, 1].plot(beta)
+ax[1, 1].plot(tgrid, beta)
 ax[1, 1].plot(u_opt[0])
 ax[1, 1].set_ylabel(r"$\beta$")
 ax[1, 1].legend(("beta", "beta_dot"))
