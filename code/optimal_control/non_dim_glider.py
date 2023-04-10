@@ -106,7 +106,8 @@ def glider(
     )
 
     # Objective term. The thing to be minimized by the controller.
-    L = -1 + db_dt**2
+    L = db_dt**2
+
     if energy_optimal:
         L2 = db_dt**2
         print(L2)

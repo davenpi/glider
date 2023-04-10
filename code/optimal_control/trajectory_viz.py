@@ -75,7 +75,7 @@ print("Writing video")
 ani = FuncAnimation(
     fig, update, frames=n, init_func=init, blit=True, interval=20, repeat=False
 )
-writervideo = animation.FFMpegWriter(fps=30)
+writervideo = animation.FFMpegWriter(fps=15)
 ani.save(filename=path + "/sample_oct.mp4", writer=writervideo)
 plt.close()
 
@@ -105,17 +105,17 @@ ax[0, 1].set_ylabel("X")
 ax[1, 0].plot(tgrid, y)
 ax[1, 0].set_ylabel("Y")
 ax[1, 1].plot(tgrid, beta)
-ax[1, 1].plot(u_opt[0])
+ax[1, 1].plot(tgrid, np.append(u_opt[0], np.nan))
 ax[1, 1].set_ylabel(r"$\beta$")
-ax[1, 1].legend(("beta", "beta_dot"))
+ax[1, 1].legend(("beta", "control"))
 v = x_opt[1]
-ax[2, 0].plot(v)
+ax[2, 0].plot(tgrid, v)
 ax[2, 0].set_ylabel("V")
 u = x_opt[0]
-ax[2, 1].plot(u)
+ax[2, 1].plot(tgrid, u)
 ax[2, 1].set_ylabel("U")
 w = x_opt[2]
-ax[3, 0].plot(w)
+ax[3, 0].plot(tgrid, w)
 ax[3, 0].set_ylabel("W")
 # trajectory
 ax[3, 1].scatter(x, y)
