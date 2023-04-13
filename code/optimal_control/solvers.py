@@ -1,7 +1,6 @@
 """
 Contains methods to solve optimal control problem using a direct collocation method
 """
-
 # The code is based on direct_collocation.py from the CasADi examples
 # https://github.com/casadi/casadi/blob/master/docs/examples/python/direct_collocation.py
 
@@ -188,7 +187,7 @@ def collocation_solver(
         g.append(xf_eq(Xk))  # Xk is the final state
         n_eq = xf_eq.size1_out(0)
         lbg.append([0] * n_eq)
-        ubg.append([0] * n_eq)
+        ubg.append([0.01] * n_eq)
 
     # print("Before concatenation.\n")
     # print(f"w0 is {w0}\n")

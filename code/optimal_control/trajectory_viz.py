@@ -79,21 +79,6 @@ writervideo = animation.FFMpegWriter(fps=15)
 ani.save(filename=path + "/sample_oct.mp4", writer=writervideo)
 plt.close()
 
-
-"""
-Ellipse drawing code. This is for the sparse visualization
-"""
-ells = [
-    Ellipse(
-        xy=(x[i], y[i]),
-        width=width[i],
-        height=height[i],
-        angle=np.deg2rad(np.mod(theta[i], 2 * np.pi)),
-    )
-    for i in np.arange(start=0, stop=n, step=floor(n / 20))
-]
-
-
 print("Plotting logged data")
 fig, ax = plt.subplots(nrows=4, ncols=2, figsize=(10, 8))
 fig.text(0.5, 0.04, "Time", ha="center")
