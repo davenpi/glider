@@ -13,7 +13,7 @@ mu = 0.2
 nu = 0.2
 g = 9.81
 rho_f = 1
-rho_s = 2
+rho_s = 200
 vol = 0.1  # actually just a*b
 m0 = np.pi * rho_s * vol  # mass.
 

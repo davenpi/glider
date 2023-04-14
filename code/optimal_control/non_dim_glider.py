@@ -106,7 +106,7 @@ def glider(
     )
 
     # Objective term. The thing to be minimized by the controller.
-    L = tf  # -(x**2)  # + db_dt**2
+    L = db_dt**2  # -(x**2)  # + db_dt**2
 
     if energy_optimal:
         L2 = db_dt**2
@@ -126,7 +126,6 @@ def glider(
     x0 = [0.1, 0.1, 0, 0, 0, 0, 1]
 
     # Final state
-    y_f = y_f
     eq1 = y - y_f
     if x_f == 0:
         eq = eq1

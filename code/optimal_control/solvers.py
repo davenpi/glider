@@ -187,10 +187,7 @@ def collocation_solver(
         g.append(xf_eq(Xk))  # Xk is the final state
         n_eq = xf_eq.size1_out(0)
         lbg.append([0] * n_eq)
-        ubg.append([0.01] * n_eq)
-
-    # print("Before concatenation.\n")
-    # print(f"w0 is {w0}\n")
+        ubg.append([0.0] * n_eq)
 
     # Concatenate vectors
     w = cas.vertcat(*w)
@@ -202,8 +199,6 @@ def collocation_solver(
     ubw = np.concatenate(ubw)
     lbg = np.concatenate(lbg)
     ubg = np.concatenate(ubg)
-    # print("After concatenation.\n")
-    # print(f"w0 is {w0}\n")
 
     # Create an NLP solver
     prob = {"f": J, "x": w, "g": g}

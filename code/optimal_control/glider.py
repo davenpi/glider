@@ -105,7 +105,7 @@ def glider(
     dx_x = u * ca.cos(theta) - v * ca.sin(theta)
     dx_y = u * ca.sin(theta) + v * ca.cos(theta)
     dx_theta = w
-    dx_beta = db_dt
+    dx_beta = -(beta - 1) + db_dt
     xdot = ca.vertcat(
         tf * dx_u,
         tf * dx_v,
@@ -117,7 +117,7 @@ def glider(
     )
 
     # Objective term. The thing to be minimized by the controller.
-    L = -(x**2) + db_dt**2
+    L = db_dt**2
     if energy_optimal:
         L2 = db_dt**2
         print(L2)
@@ -144,15 +144,25 @@ def glider(
         eq2 = x - x_f
         eq = ca.vertcat(eq1, eq2)
 
+    # Final state
+    eq1 = y - y_f
+    if x_f == 0:
+        eq = eq1
+    else:
+        eq2 = x - x_f
+        eq3 = ca.fmod(theta, 2 * np.pi) - np.pi / 4
+        eq4 = beta - 1
+        eq = ca.vertcat(eq1, eq2, eq3, eq4)
+
     xf_eq = ca.Function("xf_eq", [state], [eq], ["state"], ["eq"])
 
     # State Constraints
-    x_lb = [-np.inf, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf, 0.1]
+    x_lb = [-np.inf, -np.inf, -np.inf, -np.inf, y_f, -np.inf, 0.1]
     x_ub = [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, 10]
 
     # Control bounds
-    u_lb = -1.0
-    u_ub = 1.0
+    u_ub = 5.0
+    u_lb = -u_ub
 
     # Parameter bounds and initial guess
     tf_guess = 17.0
@@ -164,7 +174,7 @@ def glider(
 
     # Open the file in binary mode
     if using_opt_guess:
-        with open("opt_guess_with_beta_dot.pkl", "rb") as file:
+        with open("opt_guess_with_dim.pkl", "rb") as file:
             # Call load method to deserialze
             opt_guess_bd = pickle.load(file)
     else:
